@@ -44,14 +44,15 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
           yq --version
 
+      # GITHUB_OUTPUT and GITHUB_STEP_SUMMARY are reserved runner variables: the
+      # runner re-points them per step, so setting them under `env:` is ignored.
+      # They must be exported inside the script for the child process to see them.
       - name: A service manifest resolves to a production VM deploy
         env:
           MANIFEST: /tmp/service.yml
           EVENT_NAME: push
           REF_NAME: deploy/prod
           REPO: devsecops-playground-org/tasmil-ai
-          GITHUB_OUTPUT: /tmp/out.env
-          GITHUB_STEP_SUMMARY: /tmp/summary.md
         run: |
           cat >/tmp/service.yml <<'YML'
           project: tasmil
@@ -68,17 +69,10 @@ jobs:
               staging:   { branch: deploy/staging }
               production: { branch: deploy/prod }
           YML
+          export GITHUB_OUTPUT=/tmp/out.env GITHUB_STEP_SUMMARY=/tmp/summary.md
           : >/tmp/out.env
-          echo "--- yq resolution ---"; which -a yq; yq --version
-          echo "--- running parse.sh with trace ---"
-          set +e
-          bash -x ./actions/load-manifest/parse.sh 2>/tmp/trace.log
-          rc=$?
-          set -e
-          echo "parse.sh exit code: $rc"
-          echo "--- trace tail ---"; tail -25 /tmp/trace.log
-          echo "--- out.env ---"; cat /tmp/out.env
-          if [[ $rc -ne 0 ]]; then exit 1; fi
+          ./actions/load-manifest/parse.sh
+          cat /tmp/out.env
           grep -qx 'environment=production' /tmp/out.env
           grep -qx 'should_build=true' /tmp/out.env
           grep -qx 'should_deploy=true' /tmp/out.env
@@ -91,9 +85,8 @@ jobs:
           EVENT_NAME: pull_request
           REF_NAME: feature/x
           REPO: devsecops-playground-org/tasmil-ai
-          GITHUB_OUTPUT: /tmp/out2.env
-          GITHUB_STEP_SUMMARY: /tmp/summary.md
         run: |
+          export GITHUB_OUTPUT=/tmp/out2.env GITHUB_STEP_SUMMARY=/tmp/summary.md
           : >/tmp/out2.env
           ./actions/load-manifest/parse.sh
           grep -qx 'environment=' /tmp/out2.env
@@ -105,9 +98,8 @@ jobs:
           EVENT_NAME: push
           REF_NAME: main
           REPO: devsecops-playground-org/x
-          GITHUB_OUTPUT: /tmp/out3.env
-          GITHUB_STEP_SUMMARY: /tmp/summary.md
         run: |
+          export GITHUB_OUTPUT=/tmp/out3.env GITHUB_STEP_SUMMARY=/tmp/summary.md
           printf 'component: api\ntype: service\n' >/tmp/bad.yml
           : >/tmp/out3.env
           if ./actions/load-manifest/parse.sh; then

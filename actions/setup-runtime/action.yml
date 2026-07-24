@@ -29,11 +29,13 @@ runs:
   using: composite
   steps:
     # ---------------------------------------------------------------- node ---
-    - if: ${{ inputs.runtime == 'node' || inputs.runtime == 'solidity' }}
+    # Only for repos that actually use pnpm, and with no version input: the action
+    # reads the pinned version from the repo's package.json "packageManager" field.
+    # Passing both a version input and a packageManager field is a hard error.
+    - if: ${{ inputs.package_manager == 'pnpm' }}
       name: Enable pnpm
       uses: pnpm/action-setup@v6
       with:
-        version: 10
         run_install: false
 
     - if: ${{ inputs.runtime == 'node' || inputs.runtime == 'solidity' }}
