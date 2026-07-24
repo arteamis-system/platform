@@ -29,7 +29,6 @@ on:
       sustained_runs:  { type: number, required: false, default: 2 }
       gate_on:         { type: string, required: false, default: "functional_high,latency_p95_slo" }
       model:           { type: string, required: false, default: deepseek-deepseek-v4-flash }
-      baseline_branch: { type: string, required: false, default: tester-baselines }
       issues_repo:     { type: string, required: false, default: self }
       notify_on:       { type: string, required: false, default: "gate_block,new_high,auto_resolved" }
       auto_close_after_runs: { type: number, required: false, default: 3 }
@@ -70,21 +69,24 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      # Baselines live on a dedicated orphan branch so latency history survives
-      # across runs without polluting the working tree (TRD §7.4).
+      # Latency history is kept in the Actions cache rather than on a branch, so
+      # the pipeline never needs `contents: write` — a nested workflow cannot
+      # request more permission than its caller granted, and the app stubs
+      # deliberately grant only read.
       - name: Restore latency baselines
-        id: baselines
-        env:
-          BRANCH: ${{ inputs.baseline_branch }}
+        id: baseline-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .tester/baselines.json
+          key: tester-baselines-${{ inputs.component }}-${{ inputs.environment }}-${{ github.run_id }}
+          restore-keys: |
+            tester-baselines-${{ inputs.component }}-${{ inputs.environment }}-
+
+      - name: Seed baselines on first run
         run: |
           mkdir -p .tester
-          if git fetch origin "$BRANCH" 2>/dev/null; then
-            git show "origin/$BRANCH:baselines-${{ inputs.component }}-${{ inputs.environment }}.json" \
-              >.tester/baselines.json 2>/dev/null || echo '{}' >.tester/baselines.json
-          else
-            echo '{}' >.tester/baselines.json
-          fi
-          echo "Restored $(wc -c <.tester/baselines.json) bytes of baseline history."
+          [ -f .tester/baselines.json ] || echo '{}' >.tester/baselines.json
+          echo "Baseline history: $(wc -c <.tester/baselines.json) bytes."
 
       - name: Run the agent
         id: agent
@@ -123,21 +125,10 @@ jobs:
 
       - name: Persist latency baselines
         if: ${{ always() && hashFiles('.tester/baselines.json') != '' }}
-        env:
-          BRANCH: ${{ inputs.baseline_branch }}
-          FILE: baselines-${{ inputs.component }}-${{ inputs.environment }}.json
-        run: |
-          # An orphan branch used purely as a key/value store; no history needed.
-          git config user.name "tester-agent"
-          git config user.email "tester-agent@users.noreply.github.com"
-          cp .tester/baselines.json /tmp/baseline.json
-          git fetch origin "$BRANCH" 2>/dev/null && git checkout "$BRANCH" || git checkout --orphan "$BRANCH"
-          git rm -rf --cached . >/dev/null 2>&1 || true
-          find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} + 2>/dev/null || true
-          cp /tmp/baseline.json "$FILE"
-          git add "$FILE"
-          git commit -m "baselines: ${{ inputs.component }}/${{ inputs.environment }}" || exit 0
-          git push origin "HEAD:$BRANCH"
+        uses: actions/cache/save@v6
+        with:
+          path: .tester/baselines.json
+          key: tester-baselines-${{ inputs.component }}-${{ inputs.environment }}-${{ github.run_id }}
 
       - uses: actions/upload-artifact@v7
         if: ${{ always() }}

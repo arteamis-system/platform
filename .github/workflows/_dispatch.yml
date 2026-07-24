@@ -149,8 +149,8 @@ jobs:
           && (needs.deploy-vm.result == 'success' || needs.deploy-vercel.result == 'success') }}
     uses: devsecops-playground-org/platform/.github/workflows/tester-agent.yml@v1
     permissions:
-      contents: write # persists latency baselines on their own branch
-      issues: write
+      contents: read
+      issues: write # files and updates findings
     with:
       mode: soak
       component:       ${{ needs.manifest.outputs.component }}
