@@ -69,8 +69,16 @@ jobs:
               production: { branch: deploy/prod }
           YML
           : >/tmp/out.env
-          ./actions/load-manifest/parse.sh
-          cat /tmp/out.env
+          echo "--- yq resolution ---"; which -a yq; yq --version
+          echo "--- running parse.sh with trace ---"
+          set +e
+          bash -x ./actions/load-manifest/parse.sh 2>/tmp/trace.log
+          rc=$?
+          set -e
+          echo "parse.sh exit code: $rc"
+          echo "--- trace tail ---"; tail -25 /tmp/trace.log
+          echo "--- out.env ---"; cat /tmp/out.env
+          if [[ $rc -ne 0 ]]; then exit 1; fi
           grep -qx 'environment=production' /tmp/out.env
           grep -qx 'should_build=true' /tmp/out.env
           grep -qx 'should_deploy=true' /tmp/out.env
