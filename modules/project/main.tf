@@ -5,9 +5,9 @@
 terraform {
   required_version = ">= 1.9"
   required_providers {
-    digitalocean = {
-      source  = "digitalocean/digitalocean"
-      version = "~> 2.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
@@ -44,17 +44,17 @@ locals {
   ]
 }
 
+# The VM plane runs on AWS EC2. modules/vm (DigitalOcean) remains in the tree as
+# an alternative, but the project bundle targets AWS per the org's cloud choice.
 module "vm" {
-  source   = "../vm"
+  source   = "../vm-aws"
   for_each = local.vm_environments
 
-  project              = var.project
-  environment          = each.value
-  region               = var.vm.region
-  size                 = each.value == "production" ? var.vm.size : var.vm.staging_size
-  ssh_key_fingerprints = var.ssh_key_fingerprints
-  deploy_public_key    = var.deploy_public_key
-  ssh_allowed_cidrs    = var.ssh_allowed_cidrs
+  project           = var.project
+  environment       = each.value
+  instance_type     = each.value == "production" ? var.vm.size : var.vm.staging_size
+  deploy_public_key = var.deploy_public_key
+  ssh_allowed_cidrs = var.ssh_allowed_cidrs
 }
 
 module "dns" {

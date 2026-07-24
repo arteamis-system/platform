@@ -35,18 +35,14 @@ variable "needs_vm" {
   default     = true
 }
 
+# EC2 instance sizing. `size` is the production instance type, `staging_size` the
+# smaller staging one. The AWS region is set on the provider in the infra root.
 variable "vm" {
   type = object({
-    region       = optional(string, "sgp1")
-    size         = optional(string, "s-2vcpu-4gb")
-    staging_size = optional(string, "s-1vcpu-2gb")
+    size         = optional(string, "t3.small")
+    staging_size = optional(string, "t3.micro")
   })
   default = {}
-}
-
-variable "ssh_key_fingerprints" {
-  type    = list(string)
-  default = []
 }
 
 variable "deploy_public_key" {
@@ -54,7 +50,8 @@ variable "deploy_public_key" {
   default = ""
 }
 
+# EC2 security groups take IPv4 CIDRs; the default VPC path here is IPv4-only.
 variable "ssh_allowed_cidrs" {
   type    = list(string)
-  default = ["0.0.0.0/0", "::/0"]
+  default = ["0.0.0.0/0"]
 }

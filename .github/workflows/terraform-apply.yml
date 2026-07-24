@@ -12,7 +12,7 @@ on:
     inputs:
       working_directory: { type: string, required: true }
       environment:       { type: string, required: false, default: production }
-      cloud:             { type: string, required: false, default: digitalocean }
+      cloud:             { type: string, required: false, default: aws }
       terraform_version: { type: string, required: false, default: "1.14.0" }
       apply:
         description: Apply the plan after it is produced.

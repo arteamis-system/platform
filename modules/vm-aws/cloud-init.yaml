@@ -1,0 +1,32 @@
+#cloud-config
+# Everything the deploy workflow assumes about a VM is created here, so a fresh
+# droplet is deployable the moment terraform apply finishes.
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - fail2ban
+  - unattended-upgrades
+
+users:
+  - name: deploy
+    groups: [docker, sudo]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ${deploy_key}
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+
+runcmd:
+  - systemctl enable --now docker
+  - mkdir -p /opt/${project}
+  - chown -R deploy:deploy /opt/${project}
+  # One shared network so components on this box can reach each other by name.
+  - docker network create ${project}_net || true
+  - systemctl restart ssh
