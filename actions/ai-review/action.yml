@@ -1,0 +1,69 @@
+name: ai-review
+description: >-
+  Opt-in AI review of the change under test. Standardised in, standardised out:
+  it consumes the same manifest the rest of the pipeline does and writes to the
+  job summary, so it never becomes bespoke per repo.
+
+inputs:
+  component:
+    required: true
+  runtime:
+    required: true
+  coverage:
+    description: Coverage percentage produced by the test job.
+    required: false
+    default: ""
+  model:
+    required: false
+    default: claude-sonnet-5
+
+runs:
+  using: composite
+  steps:
+    - name: Review the diff
+      shell: bash
+      env:
+        COMPONENT: ${{ inputs.component }}
+        RUNTIME: ${{ inputs.runtime }}
+        COVERAGE: ${{ inputs.coverage }}
+        MODEL: ${{ inputs.model }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+          echo "::notice::ai_review is enabled but ANTHROPIC_API_KEY is not set; skipping."
+          echo "### AI review — skipped (no ANTHROPIC_API_KEY)" >>"$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        diff="$(git diff "${BASE_SHA}...HEAD" -- . ':(exclude)**/*.lock' ':(exclude)**/package-lock.json' | head -c 120000)"
+        if [[ -z "$diff" ]]; then
+          echo "### AI review — no source changes to review" >>"$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        prompt="You are reviewing a change to the '${COMPONENT}' component (${RUNTIME}). Test coverage: ${COVERAGE:-unknown}%.
+        Report only concrete defects, missing test cases, and security risks. Be brief and specific; if the change is fine, say so in one line.
+
+        Diff:
+        ${diff}"
+
+        jq -n --arg m "$MODEL" --arg p "$prompt" \
+          '{model:$m, max_tokens:1200, messages:[{role:"user", content:$p}]}' >/tmp/req.json
+
+        http=$(curl -sS -o /tmp/resp.json -w '%{http_code}' https://api.anthropic.com/v1/messages \
+          -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+          -H "anthropic-version: 2023-06-01" \
+          -H "content-type: application/json" \
+          -d @/tmp/req.json) || true
+
+        if [[ "$http" != "200" ]]; then
+          echo "::warning::AI review call failed (HTTP $http); not blocking the pipeline."
+          exit 0
+        fi
+
+        {
+          echo "### AI review — \`${COMPONENT}\`"
+          echo ""
+          jq -r '.content[0].text' /tmp/resp.json
+        } >>"$GITHUB_STEP_SUMMARY"

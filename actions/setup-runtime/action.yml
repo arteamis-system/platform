@@ -1,0 +1,120 @@
+name: setup-runtime
+description: >-
+  Install the toolchain and project dependencies for any runtime the org uses.
+  One composite so a repo never writes toolchain setup itself.
+
+inputs:
+  runtime:
+    description: node | python | go | rust | solidity
+    required: true
+  package_manager:
+    description: npm | pnpm | uv | poetry | gomod | cargo | forge
+    required: false
+    default: ""
+  node_version:
+    required: false
+    default: "22"
+  python_version:
+    required: false
+    default: "3.12"
+  go_version:
+    required: false
+    default: "1.24"
+  install:
+    description: Set to 'false' to install the toolchain but skip dependency install.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # ---------------------------------------------------------------- node ---
+    - if: ${{ inputs.runtime == 'node' || inputs.runtime == 'solidity' }}
+      name: Enable pnpm
+      uses: pnpm/action-setup@v6
+      with:
+        version: 10
+        run_install: false
+
+    - if: ${{ inputs.runtime == 'node' || inputs.runtime == 'solidity' }}
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.package_manager == 'pnpm' && 'pnpm' || 'npm' }}
+
+    - if: ${{ (inputs.runtime == 'node' || inputs.runtime == 'solidity') && inputs.install == 'true' }}
+      name: Install node dependencies
+      shell: bash
+      run: |
+        if [[ "${{ inputs.package_manager }}" == "pnpm" ]]; then
+          pnpm install --frozen-lockfile
+        elif [[ -f package-lock.json ]]; then
+          npm ci
+        else
+          echo "::warning::no package-lock.json — falling back to 'npm install' (lockfiles should be committed)"
+          npm install
+        fi
+
+    # -------------------------------------------------------------- python ---
+    - if: ${{ inputs.runtime == 'python' }}
+      uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - if: ${{ inputs.runtime == 'python' && inputs.package_manager == 'uv' }}
+      uses: astral-sh/setup-uv@v9
+      with:
+        enable-cache: true
+
+    - if: ${{ inputs.runtime == 'python' && inputs.install == 'true' }}
+      name: Install python dependencies
+      shell: bash
+      run: |
+        if [[ "${{ inputs.package_manager }}" == "poetry" ]]; then
+          pipx install poetry
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --no-ansi
+        else
+          uv sync --frozen || uv sync
+        fi
+
+    # ------------------------------------------------------------------ go ---
+    - if: ${{ inputs.runtime == 'go' }}
+      uses: actions/setup-go@v7
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: true
+
+    - if: ${{ inputs.runtime == 'go' && inputs.install == 'true' }}
+      shell: bash
+      run: go mod download
+
+    # ---------------------------------------------------------------- rust ---
+    - if: ${{ inputs.runtime == 'rust' }}
+      name: Install Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install stable --profile minimal --no-self-update
+        rustup default stable
+        rustup target add wasm32v1-none || rustup target add wasm32-unknown-unknown
+        rustc --version
+
+    - if: ${{ inputs.runtime == 'rust' }}
+      name: Cache cargo
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: cargo-${{ runner.os }}-
+
+    # ------------------------------------------------------------ solidity ---
+    - if: ${{ inputs.runtime == 'solidity' && inputs.package_manager == 'forge' }}
+      name: Install Foundry
+      shell: bash
+      run: |
+        curl -L https://foundry.paradigm.xyz | bash
+        echo "$HOME/.foundry/bin" >>"$GITHUB_PATH"
+        "$HOME/.foundry/bin/foundryup"

@@ -1,0 +1,161 @@
+name: _dispatch
+
+# The entire pipeline for every repo in the organisation.
+#
+# An application repo calls this one workflow and passes nothing. This file reads
+# that repo's .platform.yml, works out what the repo is and which environment the
+# pushed branch targets, and runs the right stages in the right order. Adding a
+# capability here lights it up across every repo at once, with no per-repo change.
+
+on:
+  workflow_call:
+    inputs:
+      manifest_path:
+        type: string
+        required: false
+        default: .platform.yml
+
+jobs:
+  # ---------------------------------------------------------------------------
+  manifest:
+    name: read manifest
+    runs-on: ubuntu-latest
+    outputs:
+      project:         ${{ steps.m.outputs.project }}
+      component:       ${{ steps.m.outputs.component }}
+      type:            ${{ steps.m.outputs.type }}
+      runtime:         ${{ steps.m.outputs.runtime }}
+      package_manager: ${{ steps.m.outputs.package_manager }}
+      test_command:    ${{ steps.m.outputs.test_command }}
+      lint_command:    ${{ steps.m.outputs.lint_command }}
+      coverage_min:    ${{ steps.m.outputs.coverage_min }}
+      ai_review:       ${{ steps.m.outputs.ai_review }}
+      dockerfile:      ${{ steps.m.outputs.dockerfile }}
+      context:         ${{ steps.m.outputs.context }}
+      image:           ${{ steps.m.outputs.image }}
+      target:          ${{ steps.m.outputs.target }}
+      service:         ${{ steps.m.outputs.service }}
+      container_name:  ${{ steps.m.outputs.container_name }}
+      compose_file:    ${{ steps.m.outputs.compose_file }}
+      remote_path:     ${{ steps.m.outputs.remote_path }}
+      health_path:     ${{ steps.m.outputs.health_path }}
+      health_port:     ${{ steps.m.outputs.health_port }}
+      environment:     ${{ steps.m.outputs.environment }}
+      url:             ${{ steps.m.outputs.url }}
+      should_build:    ${{ steps.m.outputs.should_build }}
+      should_deploy:   ${{ steps.m.outputs.should_deploy }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: m
+        uses: devsecops-playground-org/platform/actions/load-manifest@v1
+        with:
+          path: ${{ inputs.manifest_path }}
+
+  # --- Gate: nothing below runs unless this passes ---------------------------
+  security-gate:
+    name: security
+    needs: manifest
+    uses: devsecops-playground-org/platform/.github/workflows/security-gate.yml@v1
+    with:
+      runtime: ${{ needs.manifest.outputs.runtime }}
+    secrets: inherit
+
+  # --- The one stage whose content varies per repo ---------------------------
+  test:
+    name: test
+    needs: [manifest, security-gate]
+    uses: devsecops-playground-org/platform/.github/workflows/ci-test.yml@v1
+    with:
+      component:       ${{ needs.manifest.outputs.component }}
+      runtime:         ${{ needs.manifest.outputs.runtime }}
+      package_manager: ${{ needs.manifest.outputs.package_manager }}
+      test_command:    ${{ needs.manifest.outputs.test_command }}
+      lint_command:    ${{ needs.manifest.outputs.lint_command }}
+      coverage_min:    ${{ fromJSON(needs.manifest.outputs.coverage_min) }}
+      ai_review:       ${{ fromJSON(needs.manifest.outputs.ai_review) }}
+    secrets: inherit
+
+  # --- Only for refs that actually deploy ------------------------------------
+  build:
+    name: build
+    needs: [manifest, test]
+    if: ${{ needs.manifest.outputs.should_build == 'true' }}
+    uses: devsecops-playground-org/platform/.github/workflows/build-scan-sign.yml@v1
+    with:
+      component:   ${{ needs.manifest.outputs.component }}
+      image:       ${{ needs.manifest.outputs.image }}
+      dockerfile:  ${{ needs.manifest.outputs.dockerfile }}
+      context:     ${{ needs.manifest.outputs.context }}
+      environment: ${{ needs.manifest.outputs.environment }}
+    secrets: inherit
+
+  deploy-vm:
+    name: deploy
+    needs: [manifest, build]
+    if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vm' }}
+    uses: devsecops-playground-org/platform/.github/workflows/deploy-vm.yml@v1
+    with:
+      project:        ${{ needs.manifest.outputs.project }}
+      component:      ${{ needs.manifest.outputs.component }}
+      environment:    ${{ needs.manifest.outputs.environment }}
+      image:          ${{ needs.manifest.outputs.image }}
+      image_ref:      ${{ needs.build.outputs.image_ref }}
+      service:        ${{ needs.manifest.outputs.service }}
+      container_name: ${{ needs.manifest.outputs.container_name }}
+      compose_file:   ${{ needs.manifest.outputs.compose_file }}
+      remote_path:    ${{ needs.manifest.outputs.remote_path }}
+      health_path:    ${{ needs.manifest.outputs.health_path }}
+      health_port:    ${{ needs.manifest.outputs.health_port }}
+      url:            ${{ needs.manifest.outputs.url }}
+    secrets: inherit
+
+  # Frontends ship source to Vercel rather than an image, so they skip the build
+  # stage entirely and depend on the tests directly.
+  deploy-vercel:
+    name: deploy
+    needs: [manifest, test]
+    if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vercel' }}
+    uses: devsecops-playground-org/platform/.github/workflows/deploy-vercel.yml@v1
+    with:
+      project:     ${{ needs.manifest.outputs.project }}
+      component:   ${{ needs.manifest.outputs.component }}
+      environment: ${{ needs.manifest.outputs.environment }}
+      url:         ${{ needs.manifest.outputs.url }}
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  summary:
+    name: pipeline result
+    runs-on: ubuntu-latest
+    needs: [manifest, security-gate, test, build, deploy-vm, deploy-vercel]
+    if: ${{ always() }}
+    steps:
+      - name: Report
+        env:
+          SECURITY: ${{ needs.security-gate.result }}
+          TEST: ${{ needs.test.result }}
+          BUILD: ${{ needs.build.result }}
+          DEPLOY_VM: ${{ needs.deploy-vm.result }}
+          DEPLOY_VERCEL: ${{ needs.deploy-vercel.result }}
+          COVERAGE: ${{ needs.test.outputs.coverage }}
+        run: |
+          icon() { case "$1" in success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️";; *) echo "⚠️";; esac; }
+          {
+            echo "## Pipeline — ${{ needs.manifest.outputs.project }}/${{ needs.manifest.outputs.component }}"
+            echo ""
+            echo "| stage | result |"
+            echo "|---|---|"
+            echo "| security gate | $(icon "$SECURITY") $SECURITY |"
+            echo "| test (coverage ${COVERAGE:-n/a}%) | $(icon "$TEST") $TEST |"
+            echo "| build · scan · sign | $(icon "$BUILD") $BUILD |"
+            echo "| deploy | $(icon "$DEPLOY_VM") vm: $DEPLOY_VM · $(icon "$DEPLOY_VERCEL") vercel: $DEPLOY_VERCEL |"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+          # A skipped deploy is normal (pull requests, non-deploy branches);
+          # a failed one is not.
+          for r in "$SECURITY" "$TEST" "$BUILD" "$DEPLOY_VM" "$DEPLOY_VERCEL"; do
+            if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
+              echo "::error::Pipeline failed."
+              exit 1
+            fi
+          done

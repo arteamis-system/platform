@@ -1,0 +1,19 @@
+# The entire pipeline for this repository.
+# Logic lives in devsecops-playground-org/platform; this file only points at it.
+name: CI/CD
+
+on:
+  push:
+    branches: [main, deploy/staging, deploy/prod]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    uses: devsecops-playground-org/platform/.github/workflows/_dispatch.yml@v1
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+    secrets: inherit

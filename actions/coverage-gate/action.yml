@@ -1,0 +1,58 @@
+name: coverage-gate
+description: >-
+  Read whichever coverage format the repo's test runner produced, publish it as a
+  standard output, and fail if it is below the manifest's floor. Repos do not
+  agree on a coverage format, so the platform absorbs that difference here.
+
+inputs:
+  minimum:
+    description: Minimum acceptable line coverage percentage. 0 disables the gate.
+    required: false
+    default: "0"
+
+outputs:
+  coverage:
+    description: Line coverage percentage, or -1 when no report was found.
+    value: ${{ steps.read.outputs.coverage }}
+
+runs:
+  using: composite
+  steps:
+    - id: read
+      shell: bash
+      env:
+        MINIMUM: ${{ inputs.minimum }}
+      run: |
+        set -euo pipefail
+        coverage="-1"
+
+        if [[ -f coverage/coverage-summary.json ]]; then
+          # vitest / jest --coverage --coverage.reporter=json-summary
+          coverage=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+        elif [[ -f coverage.json ]]; then
+          # pytest --cov --cov-report=json
+          coverage=$(jq -r '.totals.percent_covered' coverage.json)
+        elif [[ -f coverage.xml ]]; then
+          # cobertura (pytest-cov, go-cobertura, others)
+          coverage=$(python3 -c 'import xml.etree.ElementTree as ET; r=ET.parse("coverage.xml").getroot(); print(round(float(r.get("line-rate", 0)) * 100, 2))')
+        elif [[ -f coverage.out ]]; then
+          # go test -coverprofile=coverage.out
+          coverage=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$3); print $3}')
+        fi
+
+        coverage=${coverage:--1}
+        echo "coverage=$coverage" >>"$GITHUB_OUTPUT"
+
+        if [[ "$coverage" == "-1" ]]; then
+          echo "::notice::No coverage report found; the coverage gate is inactive for this repo."
+          echo "### Coverage — not reported" >>"$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        printf '### Coverage — %s%% (floor %s%%)\n' "$coverage" "$MINIMUM" >>"$GITHUB_STEP_SUMMARY"
+
+        if awk -v c="$coverage" -v m="$MINIMUM" 'BEGIN { exit !(m > 0 && c < m) }'; then
+          echo "::error::Coverage ${coverage}% is below the ${MINIMUM}% floor declared in .platform.yml" >&2
+          exit 1
+        fi
+        echo "Coverage ${coverage}% meets the ${MINIMUM}% floor."

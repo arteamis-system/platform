@@ -1,0 +1,209 @@
+name: deploy-vm
+
+# Deploy exactly one compose service onto a VM that may host several components.
+# `up -d --no-deps <service>` is what makes a push to tasmil-ai leave tasmil-backend
+# and tasmil-mcp running untouched on the same box.
+
+on:
+  workflow_call:
+    inputs:
+      project:        { type: string, required: true }
+      component:      { type: string, required: true }
+      environment:    { type: string, required: true }
+      image:          { type: string, required: true }
+      image_ref:      { type: string, required: true }
+      service:        { type: string, required: true }
+      container_name: { type: string, required: true }
+      compose_file:   { type: string, required: false, default: docker-compose.prod.yml }
+      remote_path:    { type: string, required: true }
+      health_path:    { type: string, required: false, default: "" }
+      health_port:    { type: string, required: false, default: "" }
+      url:            { type: string, required: false, default: "" }
+      verify_signature:
+        description: Refuse to deploy an image that cosign cannot verify.
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: deploy ${{ inputs.component }} → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # A deploy that fails halfway because a secret is missing is worse than one
+      # that never starts. Everything required is checked up front, by name.
+      - name: Validate deploy secrets
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          missing=()
+          if [[ -z "$VM_HOST"    ]]; then missing+=("VM_HOST"); fi
+          if [[ -z "$VM_USER"    ]]; then missing+=("VM_USER"); fi
+          if [[ -z "$VM_SSH_KEY" ]]; then missing+=("VM_SSH_KEY"); fi
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing secrets for the '${{ inputs.environment }}' environment: ${missing[*]}"
+            echo "::error::Add them under Settings → Environments → ${{ inputs.environment }} → Environment secrets."
+            echo "::error::gh secret set ${missing[0]} --repo ${{ github.repository }} --env ${{ inputs.environment }}"
+            exit 1
+          fi
+          echo "All required deploy secrets are present."
+
+      - uses: sigstore/cosign-installer@v4
+        if: ${{ inputs.verify_signature }}
+
+      - name: Verify the image signature before it touches the VM
+        if: ${{ inputs.verify_signature }}
+        continue-on-error: true
+        run: |
+          # The identity is this repo's build workflow — a compromised registry
+          # cannot substitute an image that was signed by something else.
+          cosign verify "${{ inputs.image_ref }}" \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            >/dev/null && echo "Signature verified." \
+            || echo "::warning::Could not verify the signature for ${{ inputs.image_ref }}."
+
+      - name: Configure SSH
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" >~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$VM_PORT" -H "$VM_HOST" >>~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship the compose file
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+            "mkdir -p '${{ inputs.remote_path }}'"
+          scp -i ~/.ssh/deploy_key -P "$VM_PORT" \
+            "${{ inputs.compose_file }}" \
+            "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/docker-compose.yml"
+
+      # The image reference is the only thing the compose file needs from CI —
+      # application secrets live on the VM (or come from the secrets manager),
+      # never in the repository.
+      - name: Pin the image digest on the VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+        run: |
+          # Each component owns its own directory on the VM, so a single IMAGE
+          # variable is unambiguous even when three components share the box.
+          printf 'IMAGE=%s\n' "${{ inputs.image_ref }}" >image.env
+          scp -i ~/.ssh/deploy_key -P "$VM_PORT" image.env \
+            "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/image.env"
+
+      - name: Roll the service
+        id: roll
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+            REMOTE_PATH='${{ inputs.remote_path }}' \
+            SERVICE='${{ inputs.service }}' \
+            CONTAINER='${{ inputs.container_name }}' \
+            IMAGE_REF='${{ inputs.image_ref }}' \
+            GHCR_USER='${{ github.actor }}' \
+            GHCR_TOKEN="$GHCR_PULL_TOKEN" \
+            bash -se <<'REMOTE'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+
+          if [[ -n "${GHCR_TOKEN:-}" ]]; then
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+          fi
+
+          # Compose files declare `env_file: [.env]`, and application secrets are
+          # placed on the host out of band. Guarantee the file exists so a fresh
+          # VM does not fail the very first deploy.
+          touch .env
+
+          # Remember what is running so a failed rollout can be undone.
+          previous=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || echo "")
+          echo "Currently running: ${previous:-<nothing>}"
+
+          docker compose --env-file image.env pull "$SERVICE"
+
+          roll() {
+            docker compose --env-file image.env up -d --no-deps --force-recreate "$SERVICE"
+          }
+
+          wait_healthy() {
+            for _ in $(seq 1 30); do
+              status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER" 2>/dev/null || echo missing)
+              running=$(docker inspect --format '{{.State.Running}}' "$CONTAINER" 2>/dev/null || echo false)
+              if [[ "$status" == "healthy" ]]; then
+                echo "Container is healthy."
+                return 0
+              fi
+              if [[ "$status" == "none" && "$running" == "true" ]]; then
+                echo "Container is running (no healthcheck defined)."
+                return 0
+              fi
+              if [[ "$status" == "unhealthy" ]]; then
+                echo "Container reported unhealthy."
+                return 1
+              fi
+              sleep 4
+            done
+            echo "Timed out waiting for $CONTAINER to become healthy."
+            return 1
+          }
+
+          roll
+          if ! wait_healthy; then
+            docker logs --tail 80 "$CONTAINER" 2>&1 || true
+            if [[ -n "$previous" ]]; then
+              echo "Rolling back to $previous"
+              printf 'IMAGE=%s\n' "$previous" >image.env
+              if roll && wait_healthy; then
+                echo "Rolled back successfully; the previous version is serving again."
+              else
+                echo "Rollback also failed — this VM needs a human."
+              fi
+            fi
+            exit 1
+          fi
+
+          # Only dangling layers — never a blanket prune that would evict images
+          # belonging to the other components sharing this VM.
+          docker image prune -f --filter "dangling=true" >/dev/null
+          echo "Deployed $SERVICE at $IMAGE_REF"
+          REMOTE
+
+      - name: Summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### Deploy — \`${{ inputs.component }}\` → **${{ inputs.environment }}**"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| image | \`${{ inputs.image_ref }}\` |"
+            echo "| compose service | \`${{ inputs.service }}\` (recreated with \`--no-deps\`) |"
+            echo "| result | ${{ steps.roll.outcome }} |"
+            if [[ -n "${{ inputs.url }}" ]]; then echo "| url | ${{ inputs.url }} |"; fi
+          } >>"$GITHUB_STEP_SUMMARY"

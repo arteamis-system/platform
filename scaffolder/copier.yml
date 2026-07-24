@@ -1,0 +1,67 @@
+# The "configure once" moment. Answering these questions produces a repository
+# that is already wired into the platform: manifest, stub, hooks, container.
+#
+#   copier copy gh:devsecops-playground-org/platform ./new-repo \
+#     --data project=novaria --data component=backend \
+#     --data type=service --data runtime=go --data target=vm
+
+_subdirectory: template
+_min_copier_version: "9.0.0"
+
+project:
+  type: str
+  help: Project family (matches the `project:` field in sibling components)
+
+component:
+  type: str
+  help: Component name within the project (backend, ai, mcp, frontend, contract)
+
+type:
+  type: str
+  help: What kind of component is this?
+  choices: [service, frontend, contract]
+  default: service
+
+runtime:
+  type: str
+  help: Which toolchain does it use?
+  choices: [node, python, go, rust, solidity]
+  default: node
+
+package_manager:
+  type: str
+  help: Dependency manager
+  choices: [npm, pnpm, uv, poetry, gomod, cargo, forge]
+  default: npm
+
+target:
+  type: str
+  help: Where does it deploy?
+  choices: [vm, vercel, none]
+  default: "{% if type == 'frontend' %}vercel{% elif type == 'contract' %}none{% else %}vm{% endif %}"
+
+test_command:
+  type: str
+  help: The one command that runs this repo's tests
+  default: "{% if runtime == 'python' %}pytest --cov --cov-report=json{% elif runtime == 'go' %}go test ./... -coverprofile=coverage.out{% elif runtime == 'rust' %}cargo test{% else %}npm run test:ci{% endif %}"
+
+coverage_min:
+  type: int
+  help: Minimum line coverage percentage (0 disables the gate)
+  default: 60
+
+ai_review:
+  type: bool
+  help: Run the AI reviewer on pull requests?
+  default: false
+
+domain:
+  type: str
+  help: Apex domain for this project
+  default: "{{ project }}.dev"
+
+http_port:
+  type: int
+  help: Port the service listens on
+  default: 8000
+  when: "{{ type == 'service' }}"

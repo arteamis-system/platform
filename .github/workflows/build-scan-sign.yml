@@ -1,0 +1,145 @@
+name: build-scan-sign
+
+# Gate 3: supply chain. An image leaves this workflow scanned, inventoried and
+# signed, or it does not leave at all. Built once per commit and re-tagged for
+# later environments, so production runs the exact bytes staging tested.
+
+on:
+  workflow_call:
+    inputs:
+      component:   { type: string, required: true }
+      image:       { type: string, required: true }
+      dockerfile:  { type: string, required: false, default: Dockerfile }
+      context:     { type: string, required: false, default: "." }
+      environment: { type: string, required: true }
+      severity:    { type: string, required: false, default: CRITICAL }
+    outputs:
+      digest:
+        description: Immutable image digest that the deploy job must pull.
+        value: ${{ jobs.build.outputs.digest }}
+      image_ref:
+        description: Fully qualified image@digest reference.
+        value: ${{ jobs.build.outputs.image_ref }}
+      signed:
+        description: Whether the image carries a cosign signature.
+        value: ${{ jobs.build.outputs.signed }}
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # required for keyless cosign signing
+
+jobs:
+  build:
+    name: build · scan · sign
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+      image_ref: ${{ steps.digest.outputs.image_ref }}
+      signed: ${{ steps.sign.outcome == 'success' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build once, deploy many. If this commit was already built for an earlier
+      # environment, promote that exact digest instead of rebuilding it.
+      - name: Look for an existing build of this commit
+        id: existing
+        run: |
+          if docker buildx imagetools inspect "${{ inputs.image }}:${{ github.sha }}" >/dev/null 2>&1; then
+            echo "found=true" >>"$GITHUB_OUTPUT"
+            echo "::notice::Promoting the image already built for commit ${GITHUB_SHA:0:7} — not rebuilding."
+          else
+            echo "found=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        id: build
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.context }}/${{ inputs.dockerfile }}
+          push: true
+          tags: |
+            ${{ inputs.image }}:${{ github.sha }}
+            ${{ inputs.image }}:${{ inputs.environment }}
+          cache-from: type=gha,scope=${{ inputs.component }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.component }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+
+      - name: Re-tag the promoted image for this environment
+        if: ${{ steps.existing.outputs.found == 'true' }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${{ inputs.image }}:${{ inputs.environment }}" \
+            "${{ inputs.image }}:${{ github.sha }}"
+
+      - name: Resolve digest
+        id: digest
+        run: |
+          digest="${{ steps.build.outputs.digest }}"
+          if [[ -z "$digest" ]]; then
+            digest=$(docker buildx imagetools inspect "${{ inputs.image }}:${{ github.sha }}" \
+              --format '{{.Manifest.Digest}}')
+          fi
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+          echo "image_ref=${{ inputs.image }}@${digest}" >>"$GITHUB_OUTPUT"
+          echo "Image digest: $digest"
+
+      - name: Scan image — fail on ${{ inputs.severity }}
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.digest.outputs.image_ref }}
+          severity: ${{ inputs.severity }}
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Generate SBOM
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.digest.outputs.image_ref }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+
+      - uses: sigstore/cosign-installer@v4
+
+      # Keyless: the signing identity is this workflow's OIDC token, so there is
+      # no signing key to store, rotate or leak.
+      - name: Sign and attest
+        id: sign
+        if: ${{ steps.existing.outputs.found == 'false' }}
+        run: |
+          cosign sign --yes "${{ steps.digest.outputs.image_ref }}"
+          cosign attest --yes \
+            --predicate sbom.spdx.json \
+            --type spdxjson \
+            "${{ steps.digest.outputs.image_ref }}"
+
+      - name: Summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### Image — \`${{ inputs.component }}\`"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| reference | \`${{ steps.digest.outputs.image_ref }}\` |"
+            echo "| environment tag | \`${{ inputs.image }}:${{ inputs.environment }}\` |"
+            echo "| rebuilt | ${{ steps.existing.outputs.found == 'false' && 'yes' || 'no — promoted existing digest' }} |"
+            echo "| signed | ${{ steps.sign.outcome == 'success' && 'cosign (keyless)' || 'inherited from the promoted build' }} |"
+          } >>"$GITHUB_STEP_SUMMARY"

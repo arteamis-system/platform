@@ -1,0 +1,36 @@
+# What this repository IS. The platform decides what to DO with it.
+# Schema: https://github.com/devsecops-playground-org/platform#the-manifest
+project: {{ project }}
+component: {{ component }}
+type: {{ type }}
+runtime: {{ runtime }}
+package_manager: {{ package_manager }}
+
+test:
+  command: {{ test_command }}
+  coverage_min: {{ coverage_min }}
+  ai_review: {{ ai_review | lower }}
+{% if type == 'service' %}
+build:
+  dockerfile: Dockerfile
+  context: .
+{% endif %}
+deploy:
+  target: {{ target }}
+{%- if target == 'vm' %}
+  service: {{ component }}
+  container_name: {{ project }}-{{ component }}
+  compose_file: docker-compose.prod.yml
+  health:
+    path: /health
+    port: {{ http_port }}
+{%- endif %}
+{%- if target != 'none' %}
+  environments:
+    staging:
+      branch: deploy/staging
+      url: https://{{ component }}.staging.{{ domain }}
+    production:
+      branch: deploy/prod
+      url: https://{{ component }}.{{ domain }}
+{%- endif %}

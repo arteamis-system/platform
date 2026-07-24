@@ -1,0 +1,72 @@
+name: cloud-oidc-login
+description: >-
+  Exchange the job's GitHub OIDC token for short-lived cloud credentials.
+  Repos never store cloud keys; the trust policy lives in the cloud, scoped to
+  repo + environment. One interface over AWS, GCP, Azure and DigitalOcean.
+
+inputs:
+  provider:
+    description: aws | gcp | azure | digitalocean | none
+    required: true
+  region:
+    required: false
+    default: ap-southeast-1
+  # AWS
+  role_to_assume:
+    required: false
+    default: ""
+  # GCP
+  workload_identity_provider:
+    required: false
+    default: ""
+  service_account:
+    required: false
+    default: ""
+  # Azure
+  client_id:
+    required: false
+    default: ""
+  tenant_id:
+    required: false
+    default: ""
+  subscription_id:
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - if: ${{ inputs.provider == 'none' }}
+      shell: bash
+      run: echo "::notice::No cloud login requested for this job."
+
+    - if: ${{ inputs.provider == 'aws' }}
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ inputs.role_to_assume }}
+        aws-region: ${{ inputs.region }}
+        # No access key: the OIDC JWT is exchanged for ~15 minute credentials.
+
+    - if: ${{ inputs.provider == 'gcp' }}
+      uses: google-github-actions/auth@v3
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - if: ${{ inputs.provider == 'azure' }}
+      uses: azure/login@v3
+      with:
+        client-id: ${{ inputs.client_id }}
+        tenant-id: ${{ inputs.tenant_id }}
+        subscription-id: ${{ inputs.subscription_id }}
+
+    # DigitalOcean has no OIDC federation yet, so this is the one place a stored
+    # token is unavoidable. Keep it environment-scoped and rotate it on a schedule.
+    - if: ${{ inputs.provider == 'digitalocean' }}
+      shell: bash
+      run: |
+        if [[ -z "${DIGITALOCEAN_ACCESS_TOKEN:-}" ]]; then
+          echo "::error::DIGITALOCEAN_ACCESS_TOKEN must be exported for provider=digitalocean" >&2
+          exit 1
+        fi
+        echo "::notice::DigitalOcean does not support OIDC federation; using a scoped stored token."

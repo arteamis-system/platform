@@ -1,0 +1,146 @@
+name: security-gate
+
+# Gate 2 of three. Gate 0 is the pre-commit hook on the developer's machine,
+# Gate 1 is GitHub push protection at the org level, and this is the one that
+# blocks the pipeline. If any job here fails, nothing builds and nothing deploys.
+
+on:
+  workflow_call:
+    inputs:
+      runtime:
+        type: string
+        required: false
+        default: node
+      severity:
+        description: Severities that fail the build.
+        type: string
+        required: false
+        default: CRITICAL
+      platform_ref:
+        description: Ref of the platform repo to read central policy from.
+        type: string
+        required: false
+        default: v1
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history: catches secrets committed before the hooks existed
+
+      - name: Fetch central policy
+        uses: actions/checkout@v7
+        with:
+          repository: devsecops-playground-org/platform
+          ref: ${{ inputs.platform_ref }}
+          path: .platform-policy
+
+      - name: Install gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Scan full history
+        run: |
+          # A repo may override the org baseline, but it has to do so deliberately.
+          config=".platform-policy/policy/.gitleaks.toml"
+          if [[ -f .gitleaks.toml ]]; then
+            echo "::notice::Using this repo's own .gitleaks.toml instead of the org baseline."
+            config=".gitleaks.toml"
+          fi
+          gitleaks detect \
+            --source . \
+            --config "$config" \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
+
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+  # ---------------------------------------------------------------------------
+  sast:
+    name: SAST (semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.171.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scan
+        run: |
+          semgrep scan \
+            --config p/ci \
+            --config p/secrets \
+            --config p/owasp-top-ten \
+            --error \
+            --metrics off \
+            --sarif --output semgrep.sarif \
+            --exclude node_modules --exclude .next --exclude dist --exclude target
+
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  # ---------------------------------------------------------------------------
+  dependencies:
+    name: SCA (trivy fs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Informational: everything HIGH and above, never blocks.
+      - name: Report HIGH findings
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
+
+      # Blocking: an unfixed-excluded CRITICAL means someone must act today.
+      - name: Fail on ${{ inputs.severity }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: ${{ inputs.severity }}
+          ignore-unfixed: true
+          exit-code: "1"
+
+  # ---------------------------------------------------------------------------
+  iac:
+    name: IaC & container config (checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: dockerfile,docker_compose,terraform,github_actions
+          quiet: true
+          soft_fail: false
+          # CKV_DOCKER_7  — we tag base images by version, not by digest.
+          # CKV2_GHA_1    — the dispatcher deliberately grants write permissions.
+          skip_check: CKV_DOCKER_7,CKV2_GHA_1
+          output_format: cli

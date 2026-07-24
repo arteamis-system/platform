@@ -1,0 +1,64 @@
+name: load-manifest
+description: >-
+  Parse a repository's .platform.yml into workflow outputs and resolve the target
+  environment from the current git ref. This is the only place the manifest schema
+  is interpreted.
+
+inputs:
+  path:
+    description: Path to the manifest inside the caller repository.
+    required: false
+    default: .platform.yml
+
+outputs:
+  project:         { description: Project family name,                 value: "${{ steps.parse.outputs.project }}" }
+  component:       { description: Component name within the project,   value: "${{ steps.parse.outputs.component }}" }
+  type:            { description: service | frontend | contract,       value: "${{ steps.parse.outputs.type }}" }
+  runtime:         { description: node | python | go | rust | solidity, value: "${{ steps.parse.outputs.runtime }}" }
+  package_manager: { description: npm | pnpm | uv | poetry | cargo,    value: "${{ steps.parse.outputs.package_manager }}" }
+
+  test_command:    { description: The one thing that varies per repo,  value: "${{ steps.parse.outputs.test_command }}" }
+  lint_command:    { description: Optional lint command,               value: "${{ steps.parse.outputs.lint_command }}" }
+  coverage_min:    { description: Minimum coverage percent,            value: "${{ steps.parse.outputs.coverage_min }}" }
+  ai_review:       { description: Whether the AI review step runs,     value: "${{ steps.parse.outputs.ai_review }}" }
+
+  dockerfile:      { description: Dockerfile path,                     value: "${{ steps.parse.outputs.dockerfile }}" }
+  context:         { description: Docker build context,                value: "${{ steps.parse.outputs.context }}" }
+  image:           { description: Fully qualified GHCR image name,     value: "${{ steps.parse.outputs.image }}" }
+
+  target:          { description: vm | vercel | none,                  value: "${{ steps.parse.outputs.target }}" }
+  service:         { description: docker compose service name,         value: "${{ steps.parse.outputs.service }}" }
+  container_name:  { description: Running container name,              value: "${{ steps.parse.outputs.container_name }}" }
+  compose_file:    { description: Compose file shipped to the VM,      value: "${{ steps.parse.outputs.compose_file }}" }
+  remote_path:     { description: Deploy directory on the VM,          value: "${{ steps.parse.outputs.remote_path }}" }
+  health_path:     { description: HTTP health endpoint,                value: "${{ steps.parse.outputs.health_path }}" }
+  health_port:     { description: Container port to health check,      value: "${{ steps.parse.outputs.health_port }}" }
+
+  environment:     { description: Resolved environment, empty if none, value: "${{ steps.parse.outputs.environment }}" }
+  url:             { description: Public URL for this environment,     value: "${{ steps.parse.outputs.url }}" }
+  should_build:    { description: 'true when an image must be built',  value: "${{ steps.parse.outputs.should_build }}" }
+  should_deploy:   { description: 'true when a deploy must run',       value: "${{ steps.parse.outputs.should_deploy }}" }
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure yq is available
+      shell: bash
+      run: |
+        if ! command -v yq >/dev/null 2>&1; then
+          echo "::notice::yq not preinstalled, fetching it"
+          sudo curl -sSL -o /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+        fi
+        yq --version
+
+    - name: Parse manifest and resolve environment
+      id: parse
+      shell: bash
+      env:
+        MANIFEST: ${{ inputs.path }}
+        EVENT_NAME: ${{ github.event_name }}
+        REF_NAME: ${{ github.ref_name }}
+        REPO: ${{ github.repository }}
+      run: ${{ github.action_path }}/parse.sh

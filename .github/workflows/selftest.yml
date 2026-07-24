@@ -1,0 +1,116 @@
+name: selftest
+
+# The platform is production for every other repository, so it gets its own CI:
+# the workflows must parse, the shell must be sane, and the manifest parser must
+# still produce the outputs the dispatcher depends on.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: workflows & shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: actionlint
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color -shellcheck=
+
+      - name: shellcheck
+        run: shellcheck actions/*/*.sh
+
+  manifest-parser:
+    name: manifest parser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: A service manifest resolves to a production VM deploy
+        env:
+          MANIFEST: /tmp/service.yml
+          EVENT_NAME: push
+          REF_NAME: deploy/prod
+          REPO: devsecops-playground-org/tasmil-ai
+          GITHUB_OUTPUT: /tmp/out.env
+          GITHUB_STEP_SUMMARY: /tmp/summary.md
+        run: |
+          cat >/tmp/service.yml <<'YML'
+          project: tasmil
+          component: ai
+          type: service
+          runtime: python
+          package_manager: poetry
+          test:
+            command: pytest
+            coverage_min: 60
+          deploy:
+            target: vm
+            environments:
+              staging:   { branch: deploy/staging }
+              production: { branch: deploy/prod }
+          YML
+          : >/tmp/out.env
+          ./actions/load-manifest/parse.sh
+          cat /tmp/out.env
+          grep -qx 'environment=production' /tmp/out.env
+          grep -qx 'should_build=true' /tmp/out.env
+          grep -qx 'should_deploy=true' /tmp/out.env
+          grep -qx 'remote_path=/opt/tasmil/ai' /tmp/out.env
+          grep -qx 'image=ghcr.io/devsecops-playground-org/tasmil-ai' /tmp/out.env
+
+      - name: A pull request never deploys
+        env:
+          MANIFEST: /tmp/service.yml
+          EVENT_NAME: pull_request
+          REF_NAME: feature/x
+          REPO: devsecops-playground-org/tasmil-ai
+          GITHUB_OUTPUT: /tmp/out2.env
+          GITHUB_STEP_SUMMARY: /tmp/summary.md
+        run: |
+          : >/tmp/out2.env
+          ./actions/load-manifest/parse.sh
+          grep -qx 'environment=' /tmp/out2.env
+          grep -qx 'should_deploy=false' /tmp/out2.env
+
+      - name: An invalid manifest fails loudly
+        env:
+          MANIFEST: /tmp/bad.yml
+          EVENT_NAME: push
+          REF_NAME: main
+          REPO: devsecops-playground-org/x
+          GITHUB_OUTPUT: /tmp/out3.env
+          GITHUB_STEP_SUMMARY: /tmp/summary.md
+        run: |
+          printf 'component: api\ntype: service\n' >/tmp/bad.yml
+          : >/tmp/out3.env
+          if ./actions/load-manifest/parse.sh; then
+            echo "::error::parser accepted a manifest with no project field"
+            exit 1
+          fi
+          echo "Rejected as expected."
+
+  terraform:
+    name: terraform modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.14.0"
+      - run: terraform fmt -check -recursive modules/
+      - name: Validate each module
+        run: |
+          for dir in modules/*/; do
+            echo "--- $dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done

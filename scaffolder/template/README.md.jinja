@@ -1,0 +1,24 @@
+# {{ project }}-{{ component }}
+
+{{ type | capitalize }} component of **{{ project }}**, running on {{ runtime }}.
+
+## Pipeline
+
+This repository owns no pipeline logic. `.github/workflows/ci.yml` calls the
+organisation platform, which reads `.platform.yml` and runs:
+
+`security gate → test → build · scan · sign → deploy`
+
+| branch | what happens |
+|---|---|
+| any branch / pull request | security gate + tests only |
+| `deploy/staging` | full pipeline, deploys to staging |
+| `deploy/prod` | full pipeline, deploys to production after approval |
+
+## Local development
+
+```bash
+cp .env.example .env      # then fill in real values — .env is never committed
+pre-commit install        # refuses commits containing secrets
+docker compose up
+```

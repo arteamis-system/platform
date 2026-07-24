@@ -1,0 +1,80 @@
+name: ci-test
+
+# The testing contract: standardised inputs in, standardised outputs out.
+# Every repo in the org runs this same workflow. The ONLY thing that differs
+# between a Next.js frontend and a Soroban contract is `test_command`.
+
+on:
+  workflow_call:
+    inputs:
+      component:        { type: string, required: true }
+      runtime:          { type: string, required: true }
+      package_manager:  { type: string, required: false, default: "" }
+      test_command:     { type: string, required: true }
+      lint_command:     { type: string, required: false, default: "" }
+      coverage_min:     { type: number, required: false, default: 0 }
+      ai_review:        { type: boolean, required: false, default: false }
+      platform_ref:     { type: string, required: false, default: v1 }
+    outputs:
+      coverage:
+        description: Line coverage percentage, or -1 when the repo reports none.
+        value: ${{ jobs.test.outputs.coverage }}
+      result:
+        description: success | failure
+        value: ${{ jobs.test.outputs.result }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ inputs.runtime }})
+    runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.cov.outputs.coverage }}
+      result: ${{ steps.run.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the AI reviewer diffs against the base commit
+
+      - uses: devsecops-playground-org/platform/actions/setup-runtime@v1
+        with:
+          runtime: ${{ inputs.runtime }}
+          package_manager: ${{ inputs.package_manager }}
+
+      - name: Lint & typecheck
+        if: ${{ inputs.lint_command != '' }}
+        run: ${{ inputs.lint_command }}
+
+      - name: Test
+        id: run
+        run: ${{ inputs.test_command }}
+
+      - name: Coverage gate
+        id: cov
+        if: ${{ always() && steps.run.outcome == 'success' }}
+        uses: devsecops-playground-org/platform/actions/coverage-gate@v1
+        with:
+          minimum: ${{ inputs.coverage_min }}
+
+      - name: AI review
+        if: ${{ always() && inputs.ai_review }}
+        uses: devsecops-playground-org/platform/actions/ai-review@v1
+        with:
+          component: ${{ inputs.component }}
+          runtime: ${{ inputs.runtime }}
+          coverage: ${{ steps.cov.outputs.coverage }}
+
+      - name: Upload test artefacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-results-${{ inputs.component }}
+          path: |
+            coverage/
+            junit*.xml
+            coverage.xml
+            coverage.json
+          if-no-files-found: ignore
+          retention-days: 7

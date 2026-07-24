@@ -1,0 +1,6 @@
+# The platform is production. Every change here affects every repo in the org.
+*                       @FromSunNews
+/.github/workflows/     @FromSunNews
+/actions/               @FromSunNews
+/modules/               @FromSunNews
+/policy/                @FromSunNews

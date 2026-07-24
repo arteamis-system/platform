@@ -1,0 +1,137 @@
+name: terraform-apply
+
+# Infrastructure changes go through the same reviewed, keyless, gated path as
+# application changes: plan on the pull request, apply on merge.
+#
+# Plan and apply are separate jobs so the plan is never gated behind the
+# environment's approval rule — reviewers need to see the plan in order to decide
+# whether to approve the apply.
+
+on:
+  workflow_call:
+    inputs:
+      working_directory: { type: string, required: true }
+      environment:       { type: string, required: false, default: production }
+      cloud:             { type: string, required: false, default: digitalocean }
+      terraform_version: { type: string, required: false, default: "1.14.0" }
+      apply:
+        description: Apply the plan after it is produced.
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    name: plan (${{ inputs.working_directory }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Cloud login (keyless where the provider supports it)
+        uses: devsecops-playground-org/platform/actions/cloud-oidc-login@v1
+        with:
+          provider: ${{ inputs.cloud }}
+          role_to_assume: ${{ vars.AWS_ROLE_ARN }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Decrypt variables
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          # Terraform variables that contain secrets live encrypted in git (SOPS +
+          # age): reviewable as a diff, unreadable without the key.
+          if [[ -f secrets.enc.tfvars.json && -n "${SOPS_AGE_KEY:-}" ]]; then
+            curl -sSL -o /tmp/sops \
+              https://github.com/getsops/sops/releases/download/v3.12.0/sops-v3.12.0.linux.amd64
+            chmod +x /tmp/sops
+            /tmp/sops --decrypt secrets.enc.tfvars.json >secrets.auto.tfvars.json
+            echo "Decrypted secrets.enc.tfvars.json"
+          else
+            echo "::notice::No encrypted variables for this stack."
+          fi
+
+      - run: terraform fmt -check -recursive
+      - run: terraform init -input=false
+      - run: terraform validate
+
+      - name: Plan
+        id: plan
+        run: terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+
+      - name: Comment the plan on the pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ inputs.working_directory }}/plan.txt', 'utf8');
+            const body = [
+              '#### Terraform plan — `${{ inputs.working_directory }}`',
+              '```terraform',
+              plan.length > 60000 ? plan.slice(0, 60000) + '\n… truncated' : plan,
+              '```',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      # The applied plan is the reviewed plan, not a fresh one computed after
+      # approval against possibly different state.
+      - name: Keep the plan for the apply job
+        if: ${{ inputs.apply }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: tfplan-${{ hashFiles(format('{0}/**', inputs.working_directory)) }}
+          path: |
+            ${{ inputs.working_directory }}/tfplan
+            ${{ inputs.working_directory }}/.terraform.lock.hcl
+          retention-days: 1
+
+  apply:
+    name: apply (${{ inputs.working_directory }})
+    needs: plan
+    if: ${{ inputs.apply }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }} # approval gate lives here
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - uses: devsecops-playground-org/platform/actions/cloud-oidc-login@v1
+        with:
+          provider: ${{ inputs.cloud }}
+          role_to_assume: ${{ vars.AWS_ROLE_ARN }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: tfplan-${{ hashFiles(format('{0}/**', inputs.working_directory)) }}
+          path: ${{ inputs.working_directory }}
+
+      - run: terraform init -input=false
+
+      - name: Apply the reviewed plan
+        run: terraform apply -input=false -auto-approve tfplan

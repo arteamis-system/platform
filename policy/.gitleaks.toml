@@ -1,0 +1,36 @@
+# Central secret-scanning policy. Every repo in the org is scanned with this file
+# unless it ships its own .gitleaks.toml.
+title = "devsecops-playground-org baseline"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-env-assignment"
+description = "Secret-looking assignment in a committed .env file"
+regex = '''(?i)^(?:export\s+)?[A-Z0-9_]*(SECRET|PASSWORD|PRIVATE_KEY|TOKEN|API_KEY)[A-Z0-9_]*\s*=\s*['"]?[^\s'"#]{12,}'''
+path = '''(^|/)\.env(\..+)?$'''
+[rules.allowlist]
+regexTarget = "line"
+regexes = [
+  '''(?i)=\s*['"]?(changeme|placeholder|example|dummy|your-.*-here|xxx+|<[^>]+>)''',
+]
+
+[[rules]]
+id = "stellar-secret-key"
+description = "Stellar/Soroban secret seed (S...)"
+regex = '''\bS[A-Z2-7]{55}\b'''
+
+[allowlist]
+description = "Non-secret paths and obvious placeholders"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)\.env\.sample$''',
+  '''(^|/)(package-lock\.json|pnpm-lock\.yaml|poetry\.lock|uv\.lock|Cargo\.lock|go\.sum)$''',
+  '''(^|/)docs/''',
+  '''(^|/)README\.md$''',
+]
+regexes = [
+  '''0x0{40}''',
+  '''(?i)dev-secret-change-in-prod''',
+]
