@@ -10,6 +10,38 @@ test:
   command: {{ test_command }}
   coverage_min: {{ coverage_min }}
   ai_review: {{ ai_review | lower }}
+{%- if tester_agent %}
+  # The autonomous tester. Read-only against staging, hard-bounded by
+  # iterations, wall-clock and spend — whichever ceiling is hit first ends a run.
+  tester_agent:
+    enabled: true
+    scope:
+      base_url_secret: TESTER_BASE_URL
+      mutating: false
+    slo:
+      latency_p95_ms: {{ slo_p95_ms }}
+    soak:
+      enabled: true
+      iterations: 20
+      budget_minutes: 10
+      token_budget_usd: 3
+      gate_on: [functional_high, latency_p95_slo]
+    monitor:
+      enabled: true
+      schedule: "{{ monitor_schedule }}"
+      target: {{ monitor_target }}
+
+report:
+  issues:
+    repo: self
+    auto_close_after_runs: 3
+  lark:
+    notify_on: [gate_block, new_high, auto_resolved]
+  baselines:
+    metric: p95
+    drift_pct: 30
+    sustained_runs: 2
+{%- endif %}
 {% if type == 'service' %}
 build:
   dockerfile: Dockerfile

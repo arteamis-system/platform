@@ -5,6 +5,7 @@
 // is no bundle to build or vendored tree to keep current.
 
 import { readFile, appendFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 
 const GITHUB_API = process.env.GITHUB_API_URL ?? 'https://api.github.com';
 const FP_LABEL_PREFIX = 'agent-fp:';
@@ -337,7 +338,11 @@ export function clearAbsences(body = '') {
   return body.replace(/\n*<!--absences:\d+-->/g, '');
 }
 
-main().catch((err) => {
-  // Routing must never be the reason a pipeline fails.
-  console.log(`::warning::findings routing failed: ${err.message}`);
-});
+// Only run when executed directly — importing this module for its pure functions
+// (route.test.mjs) must not kick off a real routing run.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    // Routing must never be the reason a pipeline fails.
+    console.log(`::warning::findings routing failed: ${err.message}`);
+  });
+}

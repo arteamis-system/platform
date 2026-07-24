@@ -65,3 +65,27 @@ http_port:
   help: Port the service listens on
   default: 8000
   when: "{{ type == 'service' }}"
+
+tester_agent:
+  type: bool
+  help: Enable the autonomous tester agent (soak gate + scheduled monitor)?
+  default: false
+
+monitor_schedule:
+  type: str
+  help: Cron for the scheduled monitor
+  default: "0 */6 * * *"
+  when: "{{ tester_agent }}"
+
+monitor_target:
+  type: str
+  help: What the monitor probes
+  choices: [staging, live_readonly]
+  default: staging
+  when: "{{ tester_agent }}"
+
+slo_p95_ms:
+  type: int
+  help: p95 latency SLO in milliseconds (0 disables the latency gate)
+  default: 0
+  when: "{{ tester_agent }}"

@@ -1,0 +1,23 @@
+{% raw %}# Scheduled autonomous monitoring (FR-15). The cron cannot be templated at run
+# time, so the scaffolder writes it here from the manifest.
+name: monitor
+{% endraw %}
+on:
+  schedule:
+    - cron: "{{ monitor_schedule }}"
+  workflow_dispatch:
+{% raw %}
+jobs:
+  monitor:
+    uses: devsecops-playground-org/platform/.github/workflows/tester-agent.yml@v1
+    permissions:
+      contents: write
+      issues: write
+    with:
+      mode: monitor
+{% endraw %}      component: {{ component }}
+      environment: {{ monitor_target }}
+{% raw %}    # The dispatcher is this org's own pinned @v1 workflow, not a third party;
+    # inheriting secrets to it is the intended design.
+    secrets: inherit # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
+{% endraw %}

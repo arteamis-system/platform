@@ -131,32 +131,12 @@ jobs:
         working-directory: actions/report-findings
         run: node --test
 
-      - name: Validate the report schema against a sample
+      # Asserts the schema accepts a valid report AND rejects each broken variant,
+      # so the contract is genuinely guarded rather than nominally present.
+      - name: Validate the report schema
         run: |
-          npm install --no-save ajv@8 ajv-formats@3 >/dev/null 2>&1
-          node --input-type=module -e "
-            import Ajv from 'ajv';
-            import { readFileSync } from 'node:fs';
-            const schema = JSON.parse(readFileSync('policy/schemas/tester-report.schema.json','utf8'));
-            const sample = {
-              mode: 'soak', environment: 'staging', iterations_run: 12,
-              gate_decision: 'block', cost_usd: 0.12,
-              findings: [{ id: 'a1b2c3d4', type: 'latency_regression', severity: 'high',
-                           endpoint: 'GET /search', summary: 'p95 above SLO',
-                           metrics: { p95_ms: 812 }, repro: '.tester/replays/a1b2c3d4.http',
-                           verified: 3 }],
-              latency: { 'GET /search': { p50: 120, p95: 812, p99: 1400 } },
-            };
-            const ajv = new Ajv({ strict: false });
-            const validate = ajv.compile(schema);
-            if (!validate(sample)) { console.error(validate.errors); process.exit(1); }
-            // A bad severity must be rejected, or the schema is not actually guarding.
-            if (validate({ ...sample, findings: [{ ...sample.findings[0], severity: 'critical' }] })) {
-              console.error('schema accepted an invalid severity');
-              process.exit(1);
-            }
-            console.log('report schema validates the contract');
-          "
+          npm install --no-save ajv@8 >/dev/null 2>&1
+          node policy/schemas/validate.mjs
 
   terraform:
     name: terraform modules
