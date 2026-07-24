@@ -6,3 +6,5 @@ node_modules/
 
 # Module-level lock files are not committed; only root configs pin providers.
 .terraform.lock.hcl
+tester-agent/dist/
+tester-agent/coverage/

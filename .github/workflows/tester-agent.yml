@@ -1,0 +1,160 @@
+name: tester-agent
+
+# The autonomous tester (FR-14–19). Two run models share this one workflow:
+#   soak    — invoked by the dispatcher after a staging deploy; may block promotion
+#   monitor — invoked by each repo's generated monitor.yml on a cron; never gates
+
+on:
+  workflow_call:
+    inputs:
+      mode:            { type: string, required: true } # soak | monitor
+      component:       { type: string, required: true }
+      environment:     { type: string, required: true }
+      base_url_secret:
+        description: Name of the secret holding the target URL.
+        type: string
+        required: false
+        default: TESTER_BASE_URL
+      openapi:         { type: string, required: false, default: "" }
+      mutating:        { type: boolean, required: false, default: false }
+      iterations:      { type: number, required: false, default: 20 }
+      budget_minutes:  { type: number, required: false, default: 10 }
+      budget_usd:      { type: number, required: false, default: 3 }
+      max_rps:         { type: number, required: false, default: 5 }
+      reverify:        { type: number, required: false, default: 3 }
+      min_verified:    { type: number, required: false, default: 2 }
+      slo_p95_ms:      { type: number, required: false, default: 0 }
+      slo_p99_ms:      { type: number, required: false, default: 0 }
+      drift_pct:       { type: number, required: false, default: 30 }
+      sustained_runs:  { type: number, required: false, default: 2 }
+      gate_on:         { type: string, required: false, default: "functional_high,latency_p95_slo" }
+      model:           { type: string, required: false, default: deepseek-deepseek-v4-flash }
+      baseline_branch: { type: string, required: false, default: tester-baselines }
+      issues_repo:     { type: string, required: false, default: self }
+      notify_on:       { type: string, required: false, default: "gate_block,new_high,auto_resolved" }
+      auto_close_after_runs: { type: number, required: false, default: 3 }
+    outputs:
+      gate_decision:
+        value: ${{ jobs.run.outputs.gate_decision }}
+      findings:
+        value: ${{ jobs.run.outputs.findings }}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run:
+    name: ${{ inputs.mode }} (${{ inputs.component }})
+    runs-on: ubuntu-latest
+    outputs:
+      gate_decision: ${{ steps.agent.outputs.gate_decision }}
+      findings: ${{ steps.agent.outputs.findings }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch the platform (agent implementation)
+        uses: actions/checkout@v7
+        with:
+          repository: devsecops-playground-org/platform
+          ref: v1
+          path: .platform
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Build the agent
+        working-directory: .platform/tester-agent
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      # Baselines live on a dedicated orphan branch so latency history survives
+      # across runs without polluting the working tree (TRD §7.4).
+      - name: Restore latency baselines
+        id: baselines
+        env:
+          BRANCH: ${{ inputs.baseline_branch }}
+        run: |
+          mkdir -p .tester
+          if git fetch origin "$BRANCH" 2>/dev/null; then
+            git show "origin/$BRANCH:baselines-${{ inputs.component }}-${{ inputs.environment }}.json" \
+              >.tester/baselines.json 2>/dev/null || echo '{}' >.tester/baselines.json
+          else
+            echo '{}' >.tester/baselines.json
+          fi
+          echo "Restored $(wc -c <.tester/baselines.json) bytes of baseline history."
+
+      - name: Run the agent
+        id: agent
+        continue-on-error: true
+        env:
+          VIRTUALS_API_KEY: ${{ secrets.VIRTUALS_API_KEY }}
+          TESTER_MODE: ${{ inputs.mode }}
+          TESTER_ENVIRONMENT: ${{ inputs.environment }}
+          TESTER_BASE_URL: ${{ secrets[inputs.base_url_secret] }}
+          TESTER_OPENAPI: ${{ inputs.openapi }}
+          TESTER_MUTATING: ${{ inputs.mutating }}
+          TESTER_ITERATIONS: ${{ inputs.iterations }}
+          TESTER_BUDGET_MINUTES: ${{ inputs.budget_minutes }}
+          TESTER_BUDGET_USD: ${{ inputs.budget_usd }}
+          TESTER_MAX_RPS: ${{ inputs.max_rps }}
+          TESTER_REVERIFY: ${{ inputs.reverify }}
+          TESTER_MIN_VERIFIED: ${{ inputs.min_verified }}
+          TESTER_SLO_P95_MS: ${{ inputs.slo_p95_ms }}
+          TESTER_SLO_P99_MS: ${{ inputs.slo_p99_ms }}
+          TESTER_DRIFT_PCT: ${{ inputs.drift_pct }}
+          TESTER_SUSTAINED_RUNS: ${{ inputs.sustained_runs }}
+          TESTER_GATE_ON: ${{ inputs.gate_on }}
+          TESTER_MODEL: ${{ inputs.model }}
+          TESTER_OUT_DIR: .tester
+        run: node .platform/tester-agent/bin/tester-agent.js
+
+      - name: Route findings to Issues and Lark
+        if: ${{ always() && hashFiles('.tester/report.json') != '' }}
+        uses: devsecops-playground-org/platform/actions/report-findings@v1
+        with:
+          report: .tester/report.json
+          component: ${{ inputs.component }}
+          issues_repo: ${{ inputs.issues_repo }}
+          notify_on: ${{ inputs.notify_on }}
+          auto_close_after_runs: ${{ inputs.auto_close_after_runs }}
+
+      - name: Persist latency baselines
+        if: ${{ always() && hashFiles('.tester/baselines.json') != '' }}
+        env:
+          BRANCH: ${{ inputs.baseline_branch }}
+          FILE: baselines-${{ inputs.component }}-${{ inputs.environment }}.json
+        run: |
+          # An orphan branch used purely as a key/value store; no history needed.
+          git config user.name "tester-agent"
+          git config user.email "tester-agent@users.noreply.github.com"
+          cp .tester/baselines.json /tmp/baseline.json
+          git fetch origin "$BRANCH" 2>/dev/null && git checkout "$BRANCH" || git checkout --orphan "$BRANCH"
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} + 2>/dev/null || true
+          cp /tmp/baseline.json "$FILE"
+          git add "$FILE"
+          git commit -m "baselines: ${{ inputs.component }}/${{ inputs.environment }}" || exit 0
+          git push origin "HEAD:$BRANCH"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: tester-report-${{ inputs.component }}-${{ inputs.mode }}
+          path: .tester/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Monitor never gates. Soak fails the job only on a confirmed block, which
+      # is what stops the dispatcher promoting to production.
+      - name: Enforce the gate
+        if: ${{ inputs.mode == 'soak' }}
+        run: |
+          decision="${{ steps.agent.outputs.gate_decision }}"
+          if [[ "$decision" == "block" ]]; then
+            echo "::error::Tester agent blocked promotion: ${{ steps.agent.outputs.findings }} confirmed finding(s)."
+            exit 1
+          fi
+          echo "Gate decision: ${decision:-pass}"

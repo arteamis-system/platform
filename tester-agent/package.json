@@ -1,0 +1,23 @@
+{
+  "name": "@devsecops-playground-org/tester-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "tester-agent": "./bin/tester-agent.js" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:ci": "vitest run --coverage"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@vitest/coverage-v8": "^3.1.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}

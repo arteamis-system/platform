@@ -1,0 +1,61 @@
+name: report-findings
+description: >-
+  Turn a tester-agent report into GitHub Issues and Lark alerts (FR-20–22).
+  Findings are fingerprinted, so a recurring defect maps to exactly one open
+  issue: repeats update it, disappearance auto-closes it, and only the events
+  listed in notify_on reach chat.
+
+inputs:
+  report:
+    description: Path to the tester-agent report JSON.
+    required: true
+  component:
+    required: true
+  issues_repo:
+    description: "'self' or owner/repo (e.g. a central observations repo)."
+    required: false
+    default: self
+  notify_on:
+    description: "Comma-separated: gate_block, new_high, auto_resolved."
+    required: false
+    default: gate_block,new_high,auto_resolved
+  auto_close_after_runs:
+    description: Consecutive absent runs before an issue auto-closes.
+    required: false
+    default: "3"
+  github_token:
+    description: Token used to file and update issues.
+    required: false
+    default: ${{ github.token }}
+  lark_webhook:
+    description: Lark custom-bot webhook URL. Omit to skip chat notifications.
+    required: false
+    default: ""
+
+outputs:
+  opened:
+    description: Number of issues opened.
+    value: ${{ steps.route.outputs.opened }}
+  updated:
+    description: Number of issues updated.
+    value: ${{ steps.route.outputs.updated }}
+  closed:
+    description: Number of issues auto-closed.
+    value: ${{ steps.route.outputs.closed }}
+
+runs:
+  using: composite
+  steps:
+    - id: route
+      shell: bash
+      env:
+        REPORT_PATH: ${{ inputs.report }}
+        COMPONENT: ${{ inputs.component }}
+        ISSUES_REPO: ${{ inputs.issues_repo }}
+        NOTIFY_ON: ${{ inputs.notify_on }}
+        AUTO_CLOSE_AFTER: ${{ inputs.auto_close_after_runs }}
+        SOURCE_REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        LARK_WEBHOOK: ${{ inputs.lark_webhook }}
+      run: node ${{ github.action_path }}/route.mjs

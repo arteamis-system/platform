@@ -44,6 +44,22 @@ jobs:
       url:             ${{ steps.m.outputs.url }}
       should_build:    ${{ steps.m.outputs.should_build }}
       should_deploy:   ${{ steps.m.outputs.should_deploy }}
+      should_soak:            ${{ steps.m.outputs.should_soak }}
+      tester_base_url_secret: ${{ steps.m.outputs.tester_base_url_secret }}
+      tester_openapi:         ${{ steps.m.outputs.tester_openapi }}
+      tester_mutating:        ${{ steps.m.outputs.tester_mutating }}
+      tester_model:           ${{ steps.m.outputs.tester_model }}
+      slo_p95_ms:             ${{ steps.m.outputs.slo_p95_ms }}
+      slo_p99_ms:             ${{ steps.m.outputs.slo_p99_ms }}
+      soak_iterations:        ${{ steps.m.outputs.soak_iterations }}
+      soak_budget_minutes:    ${{ steps.m.outputs.soak_budget_minutes }}
+      soak_budget_usd:        ${{ steps.m.outputs.soak_budget_usd }}
+      soak_gate_on:           ${{ steps.m.outputs.soak_gate_on }}
+      issues_repo:            ${{ steps.m.outputs.issues_repo }}
+      auto_close_after_runs:  ${{ steps.m.outputs.auto_close_after_runs }}
+      lark_notify_on:         ${{ steps.m.outputs.lark_notify_on }}
+      baseline_drift_pct:     ${{ steps.m.outputs.baseline_drift_pct }}
+      baseline_sustained_runs: ${{ steps.m.outputs.baseline_sustained_runs }}
     steps:
       - uses: actions/checkout@v7
       - id: m
@@ -123,11 +139,44 @@ jobs:
       url:         ${{ needs.manifest.outputs.url }}
     secrets: inherit
 
+  # The soak gate: probe what was just deployed to staging, and refuse to let a
+  # confirmed high-severity regression reach production (FR-16).
+  soak:
+    name: soak
+    needs: [manifest, deploy-vm, deploy-vercel]
+    if: >-
+      ${{ always() && needs.manifest.outputs.should_soak == 'true'
+          && (needs.deploy-vm.result == 'success' || needs.deploy-vercel.result == 'success') }}
+    uses: devsecops-playground-org/platform/.github/workflows/tester-agent.yml@v1
+    permissions:
+      contents: write # persists latency baselines on their own branch
+      issues: write
+    with:
+      mode: soak
+      component:       ${{ needs.manifest.outputs.component }}
+      environment:     ${{ needs.manifest.outputs.environment }}
+      base_url_secret: ${{ needs.manifest.outputs.tester_base_url_secret }}
+      openapi:         ${{ needs.manifest.outputs.tester_openapi }}
+      mutating:        ${{ fromJSON(needs.manifest.outputs.tester_mutating) }}
+      iterations:      ${{ fromJSON(needs.manifest.outputs.soak_iterations) }}
+      budget_minutes:  ${{ fromJSON(needs.manifest.outputs.soak_budget_minutes) }}
+      budget_usd:      ${{ fromJSON(needs.manifest.outputs.soak_budget_usd) }}
+      slo_p95_ms:      ${{ fromJSON(needs.manifest.outputs.slo_p95_ms) }}
+      slo_p99_ms:      ${{ fromJSON(needs.manifest.outputs.slo_p99_ms) }}
+      drift_pct:       ${{ fromJSON(needs.manifest.outputs.baseline_drift_pct) }}
+      sustained_runs:  ${{ fromJSON(needs.manifest.outputs.baseline_sustained_runs) }}
+      gate_on:         ${{ needs.manifest.outputs.soak_gate_on }}
+      model:           ${{ needs.manifest.outputs.tester_model }}
+      issues_repo:     ${{ needs.manifest.outputs.issues_repo }}
+      notify_on:       ${{ needs.manifest.outputs.lark_notify_on }}
+      auto_close_after_runs: ${{ fromJSON(needs.manifest.outputs.auto_close_after_runs) }}
+    secrets: inherit # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
+
   # ---------------------------------------------------------------------------
   summary:
     name: pipeline result
     runs-on: ubuntu-latest
-    needs: [manifest, security-gate, test, build, deploy-vm, deploy-vercel]
+    needs: [manifest, security-gate, test, build, deploy-vm, deploy-vercel, soak]
     if: ${{ always() }}
     steps:
       - name: Report
@@ -137,6 +186,8 @@ jobs:
           BUILD: ${{ needs.build.result }}
           DEPLOY_VM: ${{ needs.deploy-vm.result }}
           DEPLOY_VERCEL: ${{ needs.deploy-vercel.result }}
+          SOAK: ${{ needs.soak.result }}
+          GATE: ${{ needs.soak.outputs.gate_decision }}
           COVERAGE: ${{ needs.test.outputs.coverage }}
         run: |
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️";; *) echo "⚠️";; esac; }
@@ -149,11 +200,12 @@ jobs:
             echo "| test (coverage ${COVERAGE:-n/a}%) | $(icon "$TEST") $TEST |"
             echo "| build · scan · sign | $(icon "$BUILD") $BUILD |"
             echo "| deploy | $(icon "$DEPLOY_VM") vm: $DEPLOY_VM · $(icon "$DEPLOY_VERCEL") vercel: $DEPLOY_VERCEL |"
+            echo "| soak (tester agent) | $(icon "$SOAK") $SOAK${GATE:+ · gate: $GATE} |"
           } >>"$GITHUB_STEP_SUMMARY"
 
-          # A skipped deploy is normal (pull requests, non-deploy branches);
-          # a failed one is not.
-          for r in "$SECURITY" "$TEST" "$BUILD" "$DEPLOY_VM" "$DEPLOY_VERCEL"; do
+          # A skipped deploy or soak is normal (pull requests, non-deploy
+          # branches, agent not enabled); a failed one is not.
+          for r in "$SECURITY" "$TEST" "$BUILD" "$DEPLOY_VM" "$DEPLOY_VERCEL" "$SOAK"; do
             if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
               echo "::error::Pipeline failed."
               exit 1

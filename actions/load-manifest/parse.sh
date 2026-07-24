@@ -62,6 +62,35 @@ lint_command="$(q '.test.lint' '')"
 coverage_min="$(q '.test.coverage_min' '0')"
 ai_review="$(q '.test.ai_review' 'false')"
 
+# --- tester agent (TRD §3.2). Everything is opt-in and bounded by default. ----
+tester_enabled="$(q '.test.tester_agent.enabled' 'false')"
+tester_base_url_secret="$(q '.test.tester_agent.scope.base_url_secret' 'TESTER_BASE_URL')"
+tester_openapi="$(q '.test.tester_agent.scope.openapi' '')"
+tester_mutating="$(q '.test.tester_agent.scope.mutating' 'false')"
+tester_model="$(q '.test.tester_agent.model' 'deepseek-deepseek-v4-flash')"
+
+slo_p95_ms="$(q '.test.tester_agent.slo.latency_p95_ms' '0')"
+slo_p99_ms="$(q '.test.tester_agent.slo.latency_p99_ms' '0')"
+slo_error_pct="$(q '.test.tester_agent.slo.error_rate_pct' '0')"
+
+soak_enabled="$(q '.test.tester_agent.soak.enabled' 'false')"
+soak_iterations="$(q '.test.tester_agent.soak.iterations' '20')"
+soak_budget_minutes="$(q '.test.tester_agent.soak.budget_minutes' '10')"
+soak_budget_usd="$(q '.test.tester_agent.soak.token_budget_usd' '3')"
+soak_gate_on="$(yq -r '.test.tester_agent.soak.gate_on // ["functional_high","latency_p95_slo"] | join(",")' "$MANIFEST")"
+
+monitor_enabled="$(q '.test.tester_agent.monitor.enabled' 'false')"
+monitor_schedule="$(q '.test.tester_agent.monitor.schedule' '0 */6 * * *')"
+monitor_target="$(q '.test.tester_agent.monitor.target' 'staging')"
+
+# --- findings routing (TRD §8) ------------------------------------------------
+issues_repo="$(q '.report.issues.repo' 'self')"
+auto_close_after_runs="$(q '.report.issues.auto_close_after_runs' '3')"
+lark_notify_on="$(yq -r '.report.lark.notify_on // ["gate_block","new_high","auto_resolved"] | join(",")' "$MANIFEST")"
+baseline_metric="$(q '.report.baselines.metric' 'p95')"
+baseline_drift_pct="$(q '.report.baselines.drift_pct' '30')"
+baseline_sustained_runs="$(q '.report.baselines.sustained_runs' '2')"
+
 dockerfile="$(q '.build.dockerfile' 'Dockerfile')"
 context="$(q '.build.context' '.')"
 image="$(q '.build.image' "ghcr.io/${REPO}")"
@@ -102,6 +131,13 @@ if [[ -n "$environment" && "$target" != "none" ]]; then
   fi
 fi
 
+# Soak runs only against staging, only when both the agent and soak are enabled,
+# and only when this ref actually deployed something to test.
+should_soak=false
+if [[ "$tester_enabled" == "true" && "$soak_enabled" == "true" && "$should_deploy" == "true" && "$environment" == "staging" ]]; then
+  should_soak=true
+fi
+
 emit project "$project"
 emit component "$component"
 emit type "$type"
@@ -125,6 +161,30 @@ emit environment "$environment"
 emit url "$url"
 emit should_build "$should_build"
 emit should_deploy "$should_deploy"
+
+emit tester_enabled "$tester_enabled"
+emit tester_base_url_secret "$tester_base_url_secret"
+emit tester_openapi "$tester_openapi"
+emit tester_mutating "$tester_mutating"
+emit tester_model "$tester_model"
+emit slo_p95_ms "$slo_p95_ms"
+emit slo_p99_ms "$slo_p99_ms"
+emit slo_error_pct "$slo_error_pct"
+emit soak_enabled "$soak_enabled"
+emit soak_iterations "$soak_iterations"
+emit soak_budget_minutes "$soak_budget_minutes"
+emit soak_budget_usd "$soak_budget_usd"
+emit soak_gate_on "$soak_gate_on"
+emit monitor_enabled "$monitor_enabled"
+emit monitor_schedule "$monitor_schedule"
+emit monitor_target "$monitor_target"
+emit should_soak "$should_soak"
+emit issues_repo "$issues_repo"
+emit auto_close_after_runs "$auto_close_after_runs"
+emit lark_notify_on "$lark_notify_on"
+emit baseline_metric "$baseline_metric"
+emit baseline_drift_pct "$baseline_drift_pct"
+emit baseline_sustained_runs "$baseline_sustained_runs"
 
 {
   echo "### Manifest — \`${project}/${component}\`"

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/devsecops-playground-org/platform/policy/schemas/tester-report.schema.json",
+  "title": "Tester agent report",
+  "description": "TRD §7.7. The contract between the tester agent and findings routing / dashboards. Consumers depend on this shape, never on repo specifics.",
+  "type": "object",
+  "required": ["mode", "environment", "iterations_run", "gate_decision", "findings", "latency"],
+  "additionalProperties": false,
+  "properties": {
+    "mode": { "enum": ["soak", "monitor"] },
+    "environment": { "type": "string", "minLength": 1 },
+    "iterations_run": { "type": "integer", "minimum": 0 },
+    "gate_decision": { "enum": ["pass", "block", "n/a"] },
+    "cost_usd": { "type": "number", "minimum": 0 },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "latency": {
+      "type": "object",
+      "description": "endpoint -> percentile summary",
+      "additionalProperties": { "$ref": "#/$defs/latencySample" }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "type", "severity", "endpoint", "summary", "verified"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Fingerprint — the dedup key across the whole system.",
+          "pattern": "^[0-9a-f]{8,64}$"
+        },
+        "type": {
+          "enum": [
+            "functional_bug",
+            "latency_regression",
+            "error_spike",
+            "contract_violation",
+            "flaky",
+            "nominal"
+          ]
+        },
+        "severity": { "enum": ["high", "med", "low"] },
+        "endpoint": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+        "repro": {
+          "type": "string",
+          "description": "Path to the deterministic replay bundle (FR-18)."
+        },
+        "verified": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Independent reproductions; must clear min_verified to gate."
+        }
+      }
+    },
+    "latencySample": {
+      "type": "object",
+      "required": ["p50", "p95", "p99"],
+      "additionalProperties": false,
+      "properties": {
+        "p50": { "type": "number", "minimum": 0 },
+        "p95": { "type": "number", "minimum": 0 },
+        "p99": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

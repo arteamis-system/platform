@@ -108,6 +108,56 @@ jobs:
           fi
           echo "Rejected as expected."
 
+  tester-agent:
+    name: tester agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Build and test the agent
+        working-directory: tester-agent
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run test:ci
+          npm run build
+
+      # Findings routing is dependency-free, so its pure functions run directly
+      # on the runner's node with the built-in test runner.
+      - name: Test findings routing
+        working-directory: actions/report-findings
+        run: node --test
+
+      - name: Validate the report schema against a sample
+        run: |
+          npm install --no-save ajv@8 ajv-formats@3 >/dev/null 2>&1
+          node --input-type=module -e "
+            import Ajv from 'ajv';
+            import { readFileSync } from 'node:fs';
+            const schema = JSON.parse(readFileSync('policy/schemas/tester-report.schema.json','utf8'));
+            const sample = {
+              mode: 'soak', environment: 'staging', iterations_run: 12,
+              gate_decision: 'block', cost_usd: 0.12,
+              findings: [{ id: 'a1b2c3d4', type: 'latency_regression', severity: 'high',
+                           endpoint: 'GET /search', summary: 'p95 above SLO',
+                           metrics: { p95_ms: 812 }, repro: '.tester/replays/a1b2c3d4.http',
+                           verified: 3 }],
+              latency: { 'GET /search': { p50: 120, p95: 812, p99: 1400 } },
+            };
+            const ajv = new Ajv({ strict: false });
+            const validate = ajv.compile(schema);
+            if (!validate(sample)) { console.error(validate.errors); process.exit(1); }
+            // A bad severity must be rejected, or the schema is not actually guarding.
+            if (validate({ ...sample, findings: [{ ...sample.findings[0], severity: 'critical' }] })) {
+              console.error('schema accepted an invalid severity');
+              process.exit(1);
+            }
+            console.log('report schema validates the contract');
+          "
+
   terraform:
     name: terraform modules
     runs-on: ubuntu-latest

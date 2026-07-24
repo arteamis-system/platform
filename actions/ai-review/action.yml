@@ -4,6 +4,9 @@ description: >-
   it consumes the same manifest the rest of the pipeline does and writes to the
   job summary, so it never becomes bespoke per repo.
 
+  Runs on the Virtuals Protocol gateway (OpenAI-compatible), so one
+  VIRTUALS_API_KEY covers every model the org uses.
+
 inputs:
   component:
     required: true
@@ -14,8 +17,12 @@ inputs:
     required: false
     default: ""
   model:
+    description: VP gateway model id.
     required: false
-    default: claude-sonnet-5
+    default: anthropic-claude-sonnet-5
+  base_url:
+    required: false
+    default: https://compute.virtuals.io/v1
 
 runs:
   using: composite
@@ -27,16 +34,24 @@ runs:
         RUNTIME: ${{ inputs.runtime }}
         COVERAGE: ${{ inputs.coverage }}
         MODEL: ${{ inputs.model }}
+        BASE_URL: ${{ inputs.base_url }}
         BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
       run: |
         set -euo pipefail
-        if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-          echo "::notice::ai_review is enabled but ANTHROPIC_API_KEY is not set; skipping."
-          echo "### AI review — skipped (no ANTHROPIC_API_KEY)" >>"$GITHUB_STEP_SUMMARY"
+        if [[ -z "${VIRTUALS_API_KEY:-}" ]]; then
+          echo "::notice::ai_review is enabled but VIRTUALS_API_KEY is not set; skipping."
+          echo "### AI review — skipped (no VIRTUALS_API_KEY)" >>"$GITHUB_STEP_SUMMARY"
           exit 0
         fi
 
-        diff="$(git diff "${BASE_SHA}...HEAD" -- . ':(exclude)**/*.lock' ':(exclude)**/package-lock.json' | head -c 120000)"
+        base="${BASE_SHA:-}"
+        if [[ -z "$base" || "$base" == "0000000000000000000000000000000000000000" ]]; then
+          base="$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)"
+        fi
+
+        diff="$(git diff "$base...HEAD" -- . \
+          ':(exclude)**/*.lock' ':(exclude)**/package-lock.json' ':(exclude)**/pnpm-lock.yaml' \
+          | head -c 120000)"
         if [[ -z "$diff" ]]; then
           echo "### AI review — no source changes to review" >>"$GITHUB_STEP_SUMMARY"
           exit 0
@@ -48,22 +63,25 @@ runs:
         Diff:
         ${diff}"
 
+        # max_tokens is kept well above the reasoning-model floor: several models
+        # on this gateway spend their budget on hidden reasoning and would
+        # otherwise return empty content.
         jq -n --arg m "$MODEL" --arg p "$prompt" \
           '{model:$m, max_tokens:1200, messages:[{role:"user", content:$p}]}' >/tmp/req.json
 
-        http=$(curl -sS -o /tmp/resp.json -w '%{http_code}' https://api.anthropic.com/v1/messages \
-          -H "x-api-key: ${ANTHROPIC_API_KEY}" \
-          -H "anthropic-version: 2023-06-01" \
+        http=$(curl -sS -o /tmp/resp.json -w '%{http_code}' "${BASE_URL}/chat/completions" \
+          -H "Authorization: Bearer ${VIRTUALS_API_KEY}" \
           -H "content-type: application/json" \
           -d @/tmp/req.json) || true
 
-        if [[ "$http" != "200" ]]; then
+        # The gateway returns 201 on success, not 200 — accept any 2xx.
+        if [[ ! "$http" =~ ^2[0-9][0-9]$ ]]; then
           echo "::warning::AI review call failed (HTTP $http); not blocking the pipeline."
           exit 0
         fi
 
         {
-          echo "### AI review — \`${COMPONENT}\`"
+          echo "### AI review — \`${COMPONENT}\` (${MODEL})"
           echo ""
-          jq -r '.content[0].text' /tmp/resp.json
+          jq -r '.choices[0].message.content // .choices[0].message.reasoning_content // "(empty response)"' /tmp/resp.json
         } >>"$GITHUB_STEP_SUMMARY"

@@ -39,6 +39,33 @@ outputs:
   should_build:    { description: 'true when an image must be built',  value: "${{ steps.parse.outputs.should_build }}" }
   should_deploy:   { description: 'true when a deploy must run',       value: "${{ steps.parse.outputs.should_deploy }}" }
 
+  # --- tester agent (TRD §3.2) ---
+  tester_enabled:         { description: Agent opted in,                value: "${{ steps.parse.outputs.tester_enabled }}" }
+  tester_base_url_secret: { description: Secret holding the target URL, value: "${{ steps.parse.outputs.tester_base_url_secret }}" }
+  tester_openapi:         { description: Path to the OpenAPI spec,      value: "${{ steps.parse.outputs.tester_openapi }}" }
+  tester_mutating:        { description: Allow mutating requests,       value: "${{ steps.parse.outputs.tester_mutating }}" }
+  tester_model:           { description: VP gateway model id,           value: "${{ steps.parse.outputs.tester_model }}" }
+  slo_p95_ms:             { description: p95 SLO in ms,                 value: "${{ steps.parse.outputs.slo_p95_ms }}" }
+  slo_p99_ms:             { description: p99 SLO in ms,                 value: "${{ steps.parse.outputs.slo_p99_ms }}" }
+  slo_error_pct:          { description: Error-rate SLO,                value: "${{ steps.parse.outputs.slo_error_pct }}" }
+  soak_enabled:           { description: Soak gate opted in,            value: "${{ steps.parse.outputs.soak_enabled }}" }
+  soak_iterations:        { description: Soak iteration cap,            value: "${{ steps.parse.outputs.soak_iterations }}" }
+  soak_budget_minutes:    { description: Soak wall-clock cap,           value: "${{ steps.parse.outputs.soak_budget_minutes }}" }
+  soak_budget_usd:        { description: Soak spend cap,                value: "${{ steps.parse.outputs.soak_budget_usd }}" }
+  soak_gate_on:           { description: Finding classes that block,    value: "${{ steps.parse.outputs.soak_gate_on }}" }
+  monitor_enabled:        { description: Scheduled monitor opted in,    value: "${{ steps.parse.outputs.monitor_enabled }}" }
+  monitor_schedule:       { description: Monitor cron,                  value: "${{ steps.parse.outputs.monitor_schedule }}" }
+  monitor_target:         { description: staging | live_readonly,       value: "${{ steps.parse.outputs.monitor_target }}" }
+  should_soak:            { description: 'true when the soak gate runs', value: "${{ steps.parse.outputs.should_soak }}" }
+
+  # --- findings routing (TRD §8) ---
+  issues_repo:             { description: self or owner/repo,            value: "${{ steps.parse.outputs.issues_repo }}" }
+  auto_close_after_runs:   { description: Absent runs before auto-close, value: "${{ steps.parse.outputs.auto_close_after_runs }}" }
+  lark_notify_on:          { description: Events that reach Lark,        value: "${{ steps.parse.outputs.lark_notify_on }}" }
+  baseline_metric:         { description: p50 | p95 | p99,               value: "${{ steps.parse.outputs.baseline_metric }}" }
+  baseline_drift_pct:      { description: Drift threshold percent,       value: "${{ steps.parse.outputs.baseline_drift_pct }}" }
+  baseline_sustained_runs: { description: Runs before drift is flagged,  value: "${{ steps.parse.outputs.baseline_sustained_runs }}" }
+
 runs:
   using: composite
   steps:
