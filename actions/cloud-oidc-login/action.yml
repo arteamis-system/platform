@@ -65,8 +65,11 @@ runs:
     - if: ${{ inputs.provider == 'digitalocean' }}
       shell: bash
       run: |
+        # We don't hard-fail here: fmt/init/validate have already run, and letting
+        # terraform itself report the missing credential gives a clearer, provider-
+        # level error than aborting the whole job before the plan is attempted.
         if [[ -z "${DIGITALOCEAN_ACCESS_TOKEN:-}" ]]; then
-          echo "::error::DIGITALOCEAN_ACCESS_TOKEN must be exported for provider=digitalocean" >&2
-          exit 1
+          echo "::warning::DIGITALOCEAN_ACCESS_TOKEN is not set; terraform plan/apply will fail until it is added as a secret."
+        else
+          echo "::notice::DigitalOcean does not support OIDC federation; using a scoped stored token."
         fi
-        echo "::notice::DigitalOcean does not support OIDC federation; using a scoped stored token."

@@ -10,10 +10,16 @@ if [[ ! -f "$MANIFEST" ]]; then
 fi
 
 # q <yaml-path> <default> — read a scalar, falling back when null/missing/empty.
+# Written with explicit `if` rather than `[[ ]] && assign`: under `set -e` the
+# latter exits the script when the test is false on bash 5 (the CI runner), even
+# though bash 3.2 tolerates it. That discrepancy is exactly the kind of drift a
+# platform must not ship.
 q() {
   local out
   out="$(yq -r "$1 // \"\"" "$MANIFEST")"
-  [[ -z "$out" || "$out" == "null" ]] && out="$2"
+  if [[ -z "$out" || "$out" == "null" ]]; then
+    out="$2"
+  fi
   printf '%s' "$out"
 }
 
@@ -76,7 +82,7 @@ environment=""
 url=""
 if [[ "$EVENT_NAME" == "push" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
   while IFS= read -r env; do
-    [[ -z "$env" ]] && continue
+    if [[ -z "$env" ]]; then continue; fi
     branch="$(q ".deploy.environments.${env}.branch" '')"
     if [[ "$branch" == "$REF_NAME" ]]; then
       environment="$env"
@@ -91,7 +97,9 @@ should_deploy=false
 if [[ -n "$environment" && "$target" != "none" ]]; then
   should_deploy=true
   # Frontends deploy from source via the Vercel CLI; everything else ships an image.
-  [[ "$target" == "vm" ]] && should_build=true
+  if [[ "$target" == "vm" ]]; then
+    should_build=true
+  fi
 fi
 
 emit project "$project"

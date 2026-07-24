@@ -39,6 +39,12 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
+      # Format, init and validate need no cloud credentials, so they run first:
+      # a malformed stack fails fast and clearly, before anything touches a cloud.
+      - run: terraform fmt -check -recursive
+      - run: terraform init -input=false
+      - run: terraform validate
+
       - name: Cloud login (keyless where the provider supports it)
         uses: devsecops-playground-org/platform/actions/cloud-oidc-login@v1
         with:
@@ -62,10 +68,6 @@ jobs:
           else
             echo "::notice::No encrypted variables for this stack."
           fi
-
-      - run: terraform fmt -check -recursive
-      - run: terraform init -input=false
-      - run: terraform validate
 
       - name: Plan
         id: plan
