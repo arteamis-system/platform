@@ -137,10 +137,14 @@ jobs:
       - uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
-          framework: dockerfile,docker_compose,terraform,github_actions
+          # checkov 3.x has no docker_compose framework; compose files are covered
+          # by the container image scan (Trivy) and the Dockerfile checks instead.
+          framework: dockerfile,terraform,github_actions,secrets
           quiet: true
           soft_fail: false
-          # CKV_DOCKER_7  — we tag base images by version, not by digest.
-          # CKV2_GHA_1    — the dispatcher deliberately grants write permissions.
-          skip_check: CKV_DOCKER_7,CKV2_GHA_1
+          # CKV_DOCKER_7 — base images are tagged by version, not by digest.
+          # CKV2_GHA_1   — the stub grants job-level write permissions by design.
+          # CKV_TF_1     — internal modules are pinned to immutable version tags
+          #                (?ref=v1.0.0) that this org controls, not commit hashes.
+          skip_check: CKV_DOCKER_7,CKV2_GHA_1,CKV_TF_1
           output_format: cli

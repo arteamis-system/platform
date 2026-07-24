@@ -34,7 +34,7 @@ outputs:
   health_path:     { description: HTTP health endpoint,                value: "${{ steps.parse.outputs.health_path }}" }
   health_port:     { description: Container port to health check,      value: "${{ steps.parse.outputs.health_port }}" }
 
-  environment:     { description: Resolved environment, empty if none, value: "${{ steps.parse.outputs.environment }}" }
+  environment:     { description: "Resolved environment; empty when this ref does not deploy", value: "${{ steps.parse.outputs.environment }}" }
   url:             { description: Public URL for this environment,     value: "${{ steps.parse.outputs.url }}" }
   should_build:    { description: 'true when an image must be built',  value: "${{ steps.parse.outputs.should_build }}" }
   should_deploy:   { description: 'true when a deploy must run',       value: "${{ steps.parse.outputs.should_deploy }}" }
@@ -45,8 +45,11 @@ runs:
     - name: Ensure yq is available
       shell: bash
       run: |
-        if ! command -v yq >/dev/null 2>&1; then
-          echo "::notice::yq not preinstalled, fetching it"
+        # The manifest schema is expressed in mikefarah yq syntax. A runner that
+        # ships a different yq (e.g. the python one) would parse it wrongly, so we
+        # install a known-good binary unless mikefarah's is already present.
+        if ! yq --version 2>/dev/null | grep -qi mikefarah; then
+          echo "::notice::installing mikefarah yq"
           sudo curl -sSL -o /usr/local/bin/yq \
             https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq

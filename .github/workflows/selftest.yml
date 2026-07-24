@@ -34,6 +34,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The dispatcher gets yq from the load-manifest action; when we call
+      # parse.sh directly we must provide it ourselves, and pin the flavour so
+      # the assertions below can't be fooled by a different yq on the runner.
+      - name: Install yq (mikefarah)
+        run: |
+          sudo curl -sSL -o /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
       - name: A service manifest resolves to a production VM deploy
         env:
           MANIFEST: /tmp/service.yml

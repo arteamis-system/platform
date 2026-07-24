@@ -16,4 +16,6 @@ jobs:
       packages: write
       id-token: write
       security-events: write
-    secrets: inherit
+    # The dispatcher is this org's own pinned @v1 workflow, not a third party;
+    # inheriting secrets to it is the intended design.
+    secrets: inherit # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit

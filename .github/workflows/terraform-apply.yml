@@ -73,7 +73,7 @@ jobs:
 
       - name: Comment the plan on the pull request
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -95,7 +95,7 @@ jobs:
       # approval against possibly different state.
       - name: Keep the plan for the apply job
         if: ${{ inputs.apply }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-${{ hashFiles(format('{0}/**', inputs.working_directory)) }}
           path: |
@@ -126,7 +126,7 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: tfplan-${{ hashFiles(format('{0}/**', inputs.working_directory)) }}
           path: ${{ inputs.working_directory }}
