@@ -62,7 +62,7 @@ runs:
         python-version: ${{ inputs.python_version }}
 
     - if: ${{ inputs.runtime == 'python' && inputs.package_manager == 'uv' }}
-      uses: astral-sh/setup-uv@v9
+      uses: astral-sh/setup-uv@v9.0.0
       with:
         enable-cache: true
 

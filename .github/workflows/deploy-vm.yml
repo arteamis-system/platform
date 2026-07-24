@@ -60,7 +60,7 @@ jobs:
           fi
           echo "All required deploy secrets are present."
 
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
         if: ${{ inputs.verify_signature }}
 
       - name: Verify the image signature before it touches the VM

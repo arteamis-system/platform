@@ -116,7 +116,7 @@ jobs:
           output-file: sbom.spdx.json
           upload-artifact: true
 
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
 
       # Keyless: the signing identity is this workflow's OIDC token, so there is
       # no signing key to store, rotate or leak.
