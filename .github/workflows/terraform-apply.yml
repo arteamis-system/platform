@@ -71,7 +71,12 @@ jobs:
 
       - name: Plan
         id: plan
-        run: terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+        run: |
+          # pipefail matters: the runner's default shell does not set it, so
+          # `terraform plan | tee` would report tee's success and hide a failing
+          # plan behind a green check.
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan | tee plan.txt
 
       - name: Comment the plan on the pull request
         if: ${{ github.event_name == 'pull_request' }}
