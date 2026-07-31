@@ -65,18 +65,32 @@ runs:
         file-output-path: ${{ inputs.export_to_env_file }}
 
     - if: ${{ inputs.export_to_env_file != '' }}
-      name: Secure the env file (and guarantee it exists)
+      name: Secure the env file (and, without Infisical, build it from GitHub secrets)
       shell: bash
       env:
         ENV_FILE: ${{ inputs.export_to_env_file }}
         AVAILABLE: ${{ steps.source.outputs.available }}
+        # The caller passes toJSON(secrets) here so, when Infisical is not set up,
+        # the .env is materialised from GitHub Environment secrets — change a value
+        # in the repo's Environment settings, redeploy, done. No SSH to the box.
+        RUNTIME_SECRETS_JSON: ${{ env.RUNTIME_SECRETS_JSON }}
       run: |
-        # When Infisical is not configured the file above was never written; touch
-        # it so a fresh VM still has an .env to mount, and leave populating it to the
-        # out-of-band path (a .env placed on the box once).
         if [[ "$AVAILABLE" != "true" ]]; then
-          : >"$ENV_FILE"
-          echo "::notice::Infisical not configured; wrote an empty $ENV_FILE. Populate it out-of-band on the VM."
+          if [[ -n "${RUNTIME_SECRETS_JSON:-}" && "$RUNTIME_SECRETS_JSON" != "null" && "$RUNTIME_SECRETS_JSON" != "{}" ]]; then
+            # Everything except platform/infra plumbing becomes an app env var.
+            deny='VM_HOST VM_USER VM_SSH_KEY VM_PORT GHCR_PULL_TOKEN INFISICAL_CLIENT_ID INFISICAL_CLIENT_SECRET GITHUB_TOKEN github_token VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID SOPS_AGE_KEY TESTER_BASE_URL RUNTIME_SECRETS_JSON'
+            denyjq="$(printf '%s\n' $deny | jq -R . | jq -s .)"
+            : >"$ENV_FILE"
+            printf '%s' "$RUNTIME_SECRETS_JSON" \
+              | jq -r --argjson deny "$denyjq" \
+                  'to_entries[] | select((.key | ascii_upcase | startswith("VM_")) or ([.key] | inside($deny)) | not) | "\(.key)=\(.value)"' \
+              >>"$ENV_FILE"
+            n="$(grep -c . "$ENV_FILE" || true)"
+            echo "::notice::Wrote $ENV_FILE from $n GitHub Environment secret(s) (values masked)."
+          else
+            : >"$ENV_FILE"
+            echo "::notice::No Infisical and no GitHub secrets provided; wrote empty $ENV_FILE (populate out-of-band)."
+          fi
         fi
         chmod 600 "$ENV_FILE"
         echo "::notice::Runtime env file ready at $ENV_FILE (contents masked)."

@@ -107,6 +107,9 @@ jobs:
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          # Without Infisical, the .env is built from these Environment secrets, so
+          # changing an app env var is a GitHub UI edit + redeploy — never an SSH.
+          RUNTIME_SECRETS_JSON: ${{ toJSON(secrets) }}
         with:
           project: ${{ inputs.project }}
           environment: ${{ inputs.environment }}
