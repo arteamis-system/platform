@@ -46,7 +46,7 @@ jobs:
       - run: terraform validate
 
       - name: Cloud login (keyless where the provider supports it)
-        uses: devsecops-playground-org/platform/actions/cloud-oidc-login@v1
+        uses: arteamis-system/platform/actions/cloud-oidc-login@v1
         with:
           provider: ${{ inputs.cloud }}
           role_to_assume: ${{ vars.AWS_ROLE_ARN }}
@@ -126,7 +126,7 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
-      - uses: devsecops-playground-org/platform/actions/cloud-oidc-login@v1
+      - uses: arteamis-system/platform/actions/cloud-oidc-login@v1
         with:
           provider: ${{ inputs.cloud }}
           role_to_assume: ${{ vars.AWS_ROLE_ARN }}

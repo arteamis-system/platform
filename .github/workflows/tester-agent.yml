@@ -55,7 +55,7 @@ jobs:
       - name: Fetch the platform (agent implementation)
         uses: actions/checkout@v7
         with:
-          repository: devsecops-playground-org/platform
+          repository: arteamis-system/platform
           ref: v1
           path: .platform
 
@@ -115,7 +115,7 @@ jobs:
 
       - name: Route findings to Issues and Lark
         if: ${{ always() && hashFiles('.tester/report.json') != '' }}
-        uses: devsecops-playground-org/platform/actions/report-findings@v1
+        uses: arteamis-system/platform/actions/report-findings@v1
         with:
           report: .tester/report.json
           component: ${{ inputs.component }}

@@ -1,5 +1,18 @@
 # platform
 
+> **This is a fork of [devsecops-playground-org/platform](https://github.com/devsecops-playground-org/platform), kept in the `arteamis-system` org on purpose.**
+>
+> GitHub does not pass secrets to a reusable workflow in a different organisation:
+> `secrets: inherit` silently yields empty strings, so every deploy failed its
+> "Missing secrets" precondition no matter how the secrets were set. Verified with
+> a probe — same-repo call saw `VM_SSH_KEY len=410`, cross-org call saw `len=0`.
+> The platform therefore has to live in the same org as the repos that call it.
+>
+> Every internal `uses:` has been repointed at `arteamis-system/platform`. When
+> upstream moves, rebase this fork and re-apply that rewrite.
+
+
+
 The one place deployment logic exists for every repository in this organisation.
 
 An application repo carries a **manifest** describing what it is and a **stub

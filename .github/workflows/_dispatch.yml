@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: m
-        uses: devsecops-playground-org/platform/actions/load-manifest@v1
+        uses: arteamis-system/platform/actions/load-manifest@v1
         with:
           path: ${{ inputs.manifest_path }}
 
@@ -71,7 +71,7 @@ jobs:
   security-gate:
     name: security
     needs: manifest
-    uses: devsecops-playground-org/platform/.github/workflows/security-gate.yml@v1
+    uses: arteamis-system/platform/.github/workflows/security-gate.yml@v1
     with:
       runtime: ${{ needs.manifest.outputs.runtime }}
     secrets: inherit
@@ -80,7 +80,7 @@ jobs:
   test:
     name: test
     needs: [manifest, security-gate]
-    uses: devsecops-playground-org/platform/.github/workflows/ci-test.yml@v1
+    uses: arteamis-system/platform/.github/workflows/ci-test.yml@v1
     with:
       component:       ${{ needs.manifest.outputs.component }}
       runtime:         ${{ needs.manifest.outputs.runtime }}
@@ -96,7 +96,7 @@ jobs:
     name: build
     needs: [manifest, test]
     if: ${{ needs.manifest.outputs.should_build == 'true' }}
-    uses: devsecops-playground-org/platform/.github/workflows/build-scan-sign.yml@v1
+    uses: arteamis-system/platform/.github/workflows/build-scan-sign.yml@v1
     with:
       component:   ${{ needs.manifest.outputs.component }}
       image:       ${{ needs.manifest.outputs.image }}
@@ -109,7 +109,7 @@ jobs:
     name: deploy
     needs: [manifest, build]
     if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vm' }}
-    uses: devsecops-playground-org/platform/.github/workflows/deploy-vm.yml@v1
+    uses: arteamis-system/platform/.github/workflows/deploy-vm.yml@v1
     with:
       project:        ${{ needs.manifest.outputs.project }}
       component:      ${{ needs.manifest.outputs.component }}
@@ -131,7 +131,7 @@ jobs:
     name: deploy
     needs: [manifest, test]
     if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vercel' }}
-    uses: devsecops-playground-org/platform/.github/workflows/deploy-vercel.yml@v1
+    uses: arteamis-system/platform/.github/workflows/deploy-vercel.yml@v1
     with:
       project:     ${{ needs.manifest.outputs.project }}
       component:   ${{ needs.manifest.outputs.component }}
@@ -147,7 +147,7 @@ jobs:
     if: >-
       ${{ always() && needs.manifest.outputs.should_soak == 'true'
           && (needs.deploy-vm.result == 'success' || needs.deploy-vercel.result == 'success') }}
-    uses: devsecops-playground-org/platform/.github/workflows/tester-agent.yml@v1
+    uses: arteamis-system/platform/.github/workflows/tester-agent.yml@v1
     permissions:
       contents: read
       issues: write # files and updates findings

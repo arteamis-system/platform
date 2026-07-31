@@ -39,7 +39,7 @@ jobs:
       - name: Fetch central policy
         uses: actions/checkout@v7
         with:
-          repository: devsecops-playground-org/platform
+          repository: arteamis-system/platform
           ref: ${{ inputs.platform_ref }}
           path: .platform-policy
 

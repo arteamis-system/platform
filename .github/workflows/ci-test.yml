@@ -38,7 +38,7 @@ jobs:
         with:
           fetch-depth: 0 # the AI reviewer diffs against the base commit
 
-      - uses: devsecops-playground-org/platform/actions/setup-runtime@v1
+      - uses: arteamis-system/platform/actions/setup-runtime@v1
         with:
           runtime: ${{ inputs.runtime }}
           package_manager: ${{ inputs.package_manager }}
@@ -54,13 +54,13 @@ jobs:
       - name: Coverage gate
         id: cov
         if: ${{ always() && steps.run.outcome == 'success' }}
-        uses: devsecops-playground-org/platform/actions/coverage-gate@v1
+        uses: arteamis-system/platform/actions/coverage-gate@v1
         with:
           minimum: ${{ inputs.coverage_min }}
 
       - name: AI review
         if: ${{ always() && inputs.ai_review }}
-        uses: devsecops-playground-org/platform/actions/ai-review@v1
+        uses: arteamis-system/platform/actions/ai-review@v1
         with:
           component: ${{ inputs.component }}
           runtime: ${{ inputs.runtime }}
