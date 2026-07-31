@@ -33,6 +33,17 @@ variable "vm_cloud" {
   }
 }
 
+# Per-environment cloud, overriding vm_cloud for the listed envs. Lets a project
+# mix clouds — e.g. { staging = "gcp", production = "aws" }.
+variable "vm_cloud_overrides" {
+  type    = map(string)
+  default = {}
+  validation {
+    condition     = alltrue([for c in values(var.vm_cloud_overrides) : contains(["aws", "gcp"], c)])
+    error_message = "vm_cloud_overrides values must be aws or gcp."
+  }
+}
+
 # Only read when vm_cloud = \"gcp\". The AWS path sets region on the provider in
 # the infra root, so it needs nothing here.
 variable "gcp_project_id" {
