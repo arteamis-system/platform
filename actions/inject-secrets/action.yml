@@ -33,8 +33,11 @@ runs:
           echo "::notice::Infisical is not configured for this repo; falling back to GitHub Environment secrets for '${{ inputs.environment }}'."
         fi
 
-    - if: ${{ steps.source.outputs.available == 'true' }}
-      name: Pull secrets from Infisical (OIDC-authenticated machine identity)
+    # Frontend / job-env case: export the secrets as environment variables for the
+    # steps that follow (e.g. `vercel build` reading NEXT_PUBLIC_*). Used when no
+    # env file is requested.
+    - if: ${{ steps.source.outputs.available == 'true' && inputs.export_to_env_file == '' }}
+      name: Pull secrets from Infisical → job env
       uses: Infisical/secrets-action@v1.0.16
       with:
         method: universal
@@ -45,13 +48,35 @@ runs:
         secret-path: ${{ inputs.path }}
         export-type: env
 
+    # VM / docker-compose case: materialise a real .env file the deploy can ship to
+    # the box for `env_file: [.env]`. The Infisical action writes the dotenv itself,
+    # so no secret is ever echoed into a log or a run: step.
+    - if: ${{ steps.source.outputs.available == 'true' && inputs.export_to_env_file != '' }}
+      name: Pull secrets from Infisical → .env file
+      uses: Infisical/secrets-action@v1.0.16
+      with:
+        method: universal
+        client-id: ${{ env.INFISICAL_CLIENT_ID }}
+        client-secret: ${{ env.INFISICAL_CLIENT_SECRET }}
+        project-slug: ${{ inputs.project }}
+        env-slug: ${{ inputs.environment == 'production' && 'prod' || 'staging' }}
+        secret-path: ${{ inputs.path }}
+        export-type: file
+        file-output-path: ${{ inputs.export_to_env_file }}
+
     - if: ${{ inputs.export_to_env_file != '' }}
-      name: Materialise an env file for docker compose
+      name: Secure the env file (and guarantee it exists)
       shell: bash
       env:
         ENV_FILE: ${{ inputs.export_to_env_file }}
+        AVAILABLE: ${{ steps.source.outputs.available }}
       run: |
-        # Only variables the previous step exported are written; nothing is echoed.
-        : >"$ENV_FILE"
+        # When Infisical is not configured the file above was never written; touch
+        # it so a fresh VM still has an .env to mount, and leave populating it to the
+        # out-of-band path (a .env placed on the box once).
+        if [[ "$AVAILABLE" != "true" ]]; then
+          : >"$ENV_FILE"
+          echo "::notice::Infisical not configured; wrote an empty $ENV_FILE. Populate it out-of-band on the VM."
+        fi
         chmod 600 "$ENV_FILE"
-        echo "::notice::Runtime secrets written to $ENV_FILE (contents masked)."
+        echo "::notice::Runtime env file ready at $ENV_FILE (contents masked)."

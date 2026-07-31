@@ -1,6 +1,6 @@
 output "vm_hosts" {
   description = "environment => public IP. Copy these into each repo's VM_HOST environment secret."
-  value       = { for env, vm in module.vm : env => vm.ipv4 }
+  value       = { for env, vm in local.vm : env => vm.ipv4 }
 }
 
 output "hostnames" {

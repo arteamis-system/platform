@@ -1,0 +1,9 @@
+{% if needs_vm -%}
+output "vm_hosts" {
+  description = "environment => public IP. `wire-deploy-secrets.sh` reads this to set each {{ project }} repo's VM_HOST secret."
+  value       = module.{{ project }}.vm_hosts
+}
+{% endif -%}
+output "hostnames" {
+  value = module.{{ project }}.hostnames
+}

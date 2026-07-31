@@ -98,6 +98,36 @@ jobs:
             "${{ inputs.compose_file }}" \
             "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/docker-compose.yml"
 
+      # Runtime application secrets: pulled from Infisical into a .env and shipped
+      # to the VM for the compose `env_file: [.env]`. Never stored in the repo. When
+      # Infisical is not configured this yields an empty file and the real .env is
+      # expected out-of-band on the box (placed once, survives redeploys).
+      - name: Resolve runtime secrets → .env
+        uses: devsecops-playground-org/platform/actions/inject-secrets@v1
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        with:
+          project: ${{ inputs.project }}
+          environment: ${{ inputs.environment }}
+          export_to_env_file: ${{ runner.temp }}/app.env
+
+      # Ship it only when Infisical actually populated it, so an unconfigured repo
+      # keeps whatever .env is already on the box instead of overwriting it empty.
+      - name: Ship the .env to the VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+        run: |
+          if [[ -s "${{ runner.temp }}/app.env" ]]; then
+            scp -i ~/.ssh/deploy_key -P "$VM_PORT" "${{ runner.temp }}/app.env" \
+              "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/.env"
+            echo "Shipped runtime .env from Infisical."
+          else
+            echo "::notice::No Infisical .env; leaving the VM's existing .env untouched."
+          fi
+
       # The image reference is the only thing the compose file needs from CI —
       # application secrets live on the VM (or come from the secrets manager),
       # never in the repository.
@@ -136,9 +166,9 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
           fi
 
-          # Compose files declare `env_file: [.env]`, and application secrets are
-          # placed on the host out of band. Guarantee the file exists so a fresh
-          # VM does not fail the very first deploy.
+          # Compose files declare `env_file: [.env]`. The .env is shipped by CI from
+          # Infisical when configured, or placed on the host out of band otherwise.
+          # Guarantee it exists so a fresh VM never fails the very first deploy.
           touch .env
 
           # Remember what is running so a failed rollout can be undone.

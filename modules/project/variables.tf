@@ -23,6 +23,34 @@ variable "vm_components" {
   default     = []
 }
 
+variable "vm_cloud" {
+  description = "Which cloud stands up the VM plane: aws or gcp."
+  type        = string
+  default     = "aws"
+  validation {
+    condition     = contains(["aws", "gcp"], var.vm_cloud)
+    error_message = "vm_cloud must be aws or gcp."
+  }
+}
+
+# Only read when vm_cloud = \"gcp\". The AWS path sets region on the provider in
+# the infra root, so it needs nothing here.
+variable "gcp_project_id" {
+  description = "GCP project id the instances are created in (vm_cloud = gcp)."
+  type        = string
+  default     = ""
+}
+
+variable "gcp_region" {
+  type    = string
+  default = "asia-southeast1"
+}
+
+variable "gcp_zone" {
+  type    = string
+  default = "asia-southeast1-a"
+}
+
 variable "vercel_domains" {
   description = "Hostnames served by Vercel."
   type        = list(string)

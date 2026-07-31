@@ -1,0 +1,15 @@
+terraform {
+  # State is local until a remote backend is provisioned. Uncomment and run
+  # `terraform init -migrate-state` once the bucket exists — state contains
+  # infrastructure detail and belongs somewhere versioned and access-controlled.
+  #
+  # backend "s3" {
+  #   bucket                      = "devsecops-playground-tfstate"
+  #   key                         = "{{ project }}/terraform.tfstate"
+  #   region                      = "sgp1"
+  #   endpoints                   = { s3 = "https://sgp1.digitaloceanspaces.com" }
+  #   skip_credentials_validation = true
+  #   skip_region_validation      = true
+  #   skip_requesting_account_id  = true
+  # }
+}

@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (git-ignored) or supply these in CI.
+# The zone id is not a secret, but it is environment-specific.
+
+dns_zone_id = "replace-with-the-{{ project }}-cloudflare-zone-id"
+{% if needs_vm -%}
+deploy_public_key = "ssh-ed25519 AAAA... ci-deploy@{{ project }}"
+{% if vm_cloud == 'gcp' -%}
+gcp_project_id = "replace-with-the-gcp-project-id"
+{%- endif %}
+{%- endif %}

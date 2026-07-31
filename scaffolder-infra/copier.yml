@@ -1,0 +1,89 @@
+# The "stand up a project" form. Answering these questions produces an
+# infra/projects/<name>/ directory that is already a valid call to the shared
+# `project` module — one VM per environment, DNS, and a registry grant — plus the
+# handoff script that wires the resulting VM addresses into each repo's deploy
+# secrets. This is the infrastructure twin of ../scaffolder (which stamps app repos).
+#
+#   copier copy --trust gh:devsecops-playground-org/platform//scaffolder-infra \
+#     infra/projects/novaria \
+#     --data project=novaria --data domain=novaria.dev \
+#     --data vm_components='["api"]'
+#
+# Then: register the project in infra/.github/workflows/terraform.yml's matrix,
+# open a PR, and after apply run  ./wire-deploy-secrets.sh --project novaria.
+
+_subdirectory: template
+_min_copier_version: "9.0.0"
+
+project:
+  type: str
+  help: Project family name (matches the `project:` field in every component manifest)
+
+domain:
+  type: str
+  help: Apex domain this project owns
+  default: "{{ project }}.dev"
+
+environments:
+  type: json
+  help: One VM is stood up per environment listed here
+  default: ["staging", "production"]
+
+needs_vm:
+  type: bool
+  help: Does this project run any container on a VM? (false = frontend-only, Vercel only)
+  default: true
+
+vm_cloud:
+  type: str
+  help: Which cloud stands up the VM(s)?
+  choices: [aws, gcp]
+  default: aws
+  when: "{{ needs_vm }}"
+
+gcp_project_id:
+  type: str
+  help: GCP project id the VMs live in
+  default: ""
+  when: "{{ needs_vm and vm_cloud == 'gcp' }}"
+
+gcp_region:
+  type: str
+  help: GCP region
+  default: asia-southeast1
+  when: "{{ needs_vm and vm_cloud == 'gcp' }}"
+
+gcp_zone:
+  type: str
+  help: GCP zone
+  default: asia-southeast1-a
+  when: "{{ needs_vm and vm_cloud == 'gcp' }}"
+
+vm_components:
+  type: json
+  help: 'Components that run as containers on the VM, e.g. ["api","mcp","ai"]. Drives DNS records and GHCR package grants.'
+  default: ["api"]
+  when: "{{ needs_vm }}"
+
+vercel_domains:
+  type: json
+  help: Hostnames served by Vercel (CNAME → vercel), e.g. ["{{ domain }}","www.{{ domain }}"]
+  default: ["{{ domain }}", "www.{{ domain }}", "staging.{{ domain }}"]
+
+vm_size:
+  type: str
+  help: Machine size for the production VM (AWS instance type / GCP machine type)
+  default: "{% if vm_cloud == 'gcp' %}e2-small{% else %}t3.small{% endif %}"
+  when: "{{ needs_vm }}"
+
+vm_staging_size:
+  type: str
+  help: Machine size for the (smaller) staging VM
+  default: "{% if vm_cloud == 'gcp' %}e2-micro{% else %}t3.micro{% endif %}"
+  when: "{{ needs_vm }}"
+
+ssh_allowed_cidrs:
+  type: json
+  help: Who may reach port 22. Narrow this to your egress ranges before production.
+  default: ["0.0.0.0/0"]
+  when: "{{ needs_vm }}"

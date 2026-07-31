@@ -1,0 +1,18 @@
+variable "dns_zone_id" {
+  description = "Cloudflare zone id for {{ domain }}."
+  type        = string
+}
+{% if needs_vm %}
+variable "deploy_public_key" {
+  description = "Public half of the key CI deploys with. The private half is the VM_SSH_KEY secret."
+  type        = string
+  default     = ""
+}
+{%- if vm_cloud == 'gcp' %}
+
+variable "gcp_project_id" {
+  description = "GCP project id the {{ project }} VMs are created in."
+  type        = string
+}
+{%- endif %}
+{%- endif %}
