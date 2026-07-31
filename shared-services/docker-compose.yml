@@ -10,7 +10,7 @@ name: ${PROJECT}-edge
 
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.5
     restart: unless-stopped
     command:
       - --providers.docker=true

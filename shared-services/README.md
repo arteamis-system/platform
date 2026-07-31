@@ -90,6 +90,34 @@ ai.tasmil.finance   A  <vm ip>
 Once these resolve, Traefik's DNS-01 challenge (using the same Cloudflare token)
 issues the certificates automatically.
 
+## Known issue — Docker daemon API version (verified on AWS 2026-07-31)
+
+On a VM provisioned with Ubuntu's `docker.io` package (which installed Docker
+`29.1.3-0ubuntu3`), Traefik's Docker provider cannot read the socket:
+
+```
+ERR ... "client version 1.24 is too old. Minimum supported API version is 1.44" providerName=docker
+```
+
+Traefik (v3.3 **and** v3.5) negotiates from API 1.24 and this daemon rejects the
+ping outright, so Traefik never discovers containers. Postgres and the app
+containers are unaffected — only Traefik's label discovery breaks.
+
+**Fix — provision the VM with upstream Docker CE, not Ubuntu's `docker.io`.**
+In the `vm-aws` / `vm-gcp` cloud-init, replace the `docker.io` + `docker-compose-v2`
+packages with the official installer, which ships a daemon whose negotiation works:
+
+```yaml
+runcmd:
+  - curl -fsSL https://get.docker.com | sh   # docker-ce + compose plugin + buildx
+  - usermod -aG docker deploy
+  # ...then the existing systemctl/network lines
+```
+
+This change touches every VM's base image, so apply it and **re-verify a full
+provision + edge bring-up** before rolling it out — it was not changed
+automatically because the current cloud-init deploys the app path correctly.
+
 ## Why Traefik over nginx+certbot
 
 The hand-rolled arteamis kit wired nginx sites + certbot renewals per host. Traefik
