@@ -3,8 +3,9 @@
 The two things a project VM needs *once*, shared by every component on it:
 
 - **Traefik** — reverse proxy on 80/443 with **automatic HTTPS** (Let's Encrypt via
-  Cloudflare DNS-01). Routes to components by hostname using their Docker labels —
-  add a component, add a label, no proxy config to edit.
+  Cloudflare DNS-01). Routes to components by hostname from a per-component file in
+  `dynamic/` — add a component, drop a route file, no proxy config to hand-edit.
+  (File provider, not the Docker-socket provider — see the note at the bottom.)
 - **Postgres 16** — one database, persistent on the host at `/opt/<project>/data/postgres`,
   reachable by other containers as `postgres:5432` (never published to the internet).
 
@@ -39,30 +40,31 @@ docker compose -p tasmil-edge up -d
 `cf_api_token_tasmil` token (zone **tasmil.finance**). Traefik uses it only for the
 DNS-01 challenge, so certs issue even before any traffic reaches the box.
 
-## Attach a component (the only change per app repo)
+## Attach a component (a route file, not the app repo)
 
-In the component's `docker-compose.prod.yml`, add Traefik labels and drop the raw
-`ports:` (Traefik now fronts it). Example for the backend:
+Drop one file at `/opt/<project>/edge/dynamic/<component>.yml`. Traefik hot-reloads
+it and reaches the container by name over `${PROJECT}_net`. Example for the backend:
 
 ```yaml
-services:
-  backend:
-    image: ${IMAGE}
-    env_file: [.env]
-    networks: [tasmil_net]
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.backend.rule=Host(`api.tasmil.finance`)
-      - traefik.http.routers.backend.entrypoints=websecure
-      - traefik.http.routers.backend.tls.certresolver=le
-      - traefik.http.services.backend.loadbalancer.server.port=3000
-networks:
-  tasmil_net:
-    external: true
+# /opt/tasmil/edge/dynamic/backend.yml
+http:
+  routers:
+    backend:
+      rule: "Host(`api.tasmil.finance`)"
+      entryPoints: [websecure]
+      service: backend
+      tls: { certResolver: le }
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://tasmil-backend:3000"   # container_name : port
 ```
 
-mcp and ai are identical with their own `Host(...)` and port. No `ports:` mapping,
-no certbot, no nginx site file.
+mcp and ai are identical with their own `Host(...)`, container name and port. The
+component's `docker-compose.prod.yml` just needs `container_name` + `networks: [tasmil_net]`
+and **no** published `ports:` — Traefik fronts it. `onboard-project.sh` generates
+these route files from the manifest.
 
 ## Connect a component to Postgres
 
@@ -90,37 +92,29 @@ ai.tasmil.finance   A  <vm ip>
 Once these resolve, Traefik's DNS-01 challenge (using the same Cloudflare token)
 issues the certificates automatically.
 
-## Known issue — Docker daemon API version (verified on AWS 2026-07-31)
+## Why the file provider, not the Docker-socket provider (resolved on AWS 2026-07-31)
 
-On a VM provisioned with Ubuntu's `docker.io` package (which installed Docker
-`29.1.3-0ubuntu3`), Traefik's Docker provider cannot read the socket:
+The obvious design is Traefik's Docker provider (discover containers by label). On
+these VMs it fails — reproduced on **both** Ubuntu's `docker.io` (Docker 29.1.3,
+minAPI 1.44) **and** upstream Docker CE (29.7.0, minAPI 1.40), with Traefik **v3.3
+and v3.5**:
 
 ```
 ERR ... "client version 1.24 is too old. Minimum supported API version is 1.44" providerName=docker
 ```
 
-Traefik (v3.3 **and** v3.5) negotiates from API 1.24 and this daemon rejects the
-ping outright, so Traefik never discovers containers. Postgres and the app
-containers are unaffected — only Traefik's label discovery breaks.
+Traefik's socket client negotiates from API 1.24 and the daemon rejects it, so it
+never sees the containers. Postgres and the app path are unaffected.
 
-**Fix — provision the VM with upstream Docker CE, not Ubuntu's `docker.io`.**
-In the `vm-aws` / `vm-gcp` cloud-init, replace the `docker.io` + `docker-compose-v2`
-packages with the official installer, which ships a daemon whose negotiation works:
-
-```yaml
-runcmd:
-  - curl -fsSL https://get.docker.com | sh   # docker-ce + compose plugin + buildx
-  - usermod -aG docker deploy
-  # ...then the existing systemctl/network lines
-```
-
-This change touches every VM's base image, so apply it and **re-verify a full
-provision + edge bring-up** before rolling it out — it was not changed
-automatically because the current cloud-init deploys the app path correctly.
+**The fix is the file provider** (used above): routes live in `dynamic/*.yml`, so
+Traefik never touches the Docker socket. Verified end-to-end on AWS — a real Let's
+Encrypt certificate issued via DNS-01 and HTTPS routing to a backend container both
+worked. Slightly less "magic" than labels (a route file per component instead of
+labels), but reliable and generated automatically by `onboard-project.sh`.
 
 ## Why Traefik over nginx+certbot
 
 The hand-rolled arteamis kit wired nginx sites + certbot renewals per host. Traefik
-replaces both: it discovers containers by label, issues and renews TLS itself, and
-needs zero config when a new component joins — which is the whole point of a
-platform that onboards project #100 as cheaply as #10.
+replaces both: it issues and renews TLS itself and hot-reloads a new route file with
+zero restarts — the whole point of a platform that onboards project #100 as cheaply
+as #10.

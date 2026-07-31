@@ -1,11 +1,13 @@
 # Shared services for a project VM: the edge (Traefik, auto-TLS) and the database
 # (Postgres, persistent). Deployed ONCE per VM to /opt/<project>/edge, before the
-# app components. Backend/mcp/ai join ${PROJECT}_net and are routed + TLS-terminated
-# by Traefik purely via labels — no nginx/certbot config to hand-edit.
+# app components. Components join ${PROJECT}_net; Traefik routes to them from
+# per-component files in ./dynamic and terminates TLS — no nginx/certbot to edit.
 #
 #   PROJECT=tasmil DOMAIN=tasmil.finance ACME_EMAIL=you@tasmil.finance \
 #   CF_DNS_API_TOKEN=<cloudflare token> POSTGRES_PASSWORD=<...> \
 #   docker compose -p ${PROJECT}-edge up -d
+#
+# Verified end-to-end on AWS 2026-07-31: real Let's Encrypt cert (DNS-01) + routing.
 name: ${PROJECT}-edge
 
 services:
@@ -13,14 +15,17 @@ services:
     image: traefik:v3.5
     restart: unless-stopped
     command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=${PROJECT}_net
       - --entrypoints.web.address=:80
       # All plain HTTP is redirected to HTTPS at the edge.
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+      # Routes come from files in /dynamic (one per component), NOT the Docker
+      # socket: the socket provider cannot negotiate against this host's daemon
+      # ("client version 1.24 is too old" — reproduced on docker.io AND docker-ce).
+      # The file provider sidesteps it and still hot-reloads on file changes.
+      - --providers.file.directory=/dynamic
+      - --providers.file.watch=true
       # Auto-TLS via Let's Encrypt using Cloudflare DNS-01 — issues certs without
       # any inbound hit, so *.${DOMAIN} works the moment DNS points here.
       - --certificatesresolvers.le.acme.dnschallenge=true
@@ -33,7 +38,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # One route file per component; deploy-vm drops <component>.yml here.
+      - /opt/${PROJECT}/edge/dynamic:/dynamic:ro
       - acme:/acme
     networks: [default]
 
