@@ -4,7 +4,7 @@
 # values, not the plumbing.
 
 module "{{ project }}" {
-  source = "git::https://github.com/devsecops-playground-org/platform.git//modules/project?ref=v1.0.0"
+  source = "git::https://github.com/devsecops-playground-org/platform.git//modules/project?ref=v1"
 
   project      = "{{ project }}"
   environments = {{ environments | tojson }}
