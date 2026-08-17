@@ -71,8 +71,25 @@ jobs:
           tags: |
             ${{ inputs.image }}:${{ github.sha }}
             ${{ inputs.image }}:${{ inputs.environment }}
-          cache-from: type=gha,scope=${{ inputs.component }}
-          cache-to: type=gha,mode=max,scope=${{ inputs.component }}
+          # The cache lives in the registry beside the image, not in the Actions
+          # cache. `type=gha` is scoped to the branch that wrote it and is evicted
+          # after 7 days unused, so a deploy branch that ships fortnightly never
+          # finds its own cache: the 2026-08-17 production build imported the
+          # manifest and matched zero layers, rebuilding every layer from scratch
+          # and then spending 104s — longer than pushing the image itself — writing
+          # a cache the next deploy would not live long enough to use.
+          #
+          # A registry cache has neither limit. It is read by every branch and it
+          # stays until something deletes it. `type=gha` is kept as a second read
+          # source so a rebuild on the branch that just built still hits locally.
+          #
+          # image-manifest/oci-mediatypes: ghcr rejects buildkit's default cache
+          # manifest type. Without them the export fails and the cache is silently
+          # never written.
+          cache-from: |
+            type=registry,ref=${{ inputs.image }}:buildcache-${{ inputs.component }}
+            type=gha,scope=${{ inputs.component }}
+          cache-to: type=registry,ref=${{ inputs.image }}:buildcache-${{ inputs.component }},mode=max,image-manifest=true,oci-mediatypes=true
           provenance: mode=max
           sbom: true
           build-args: |
