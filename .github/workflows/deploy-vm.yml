@@ -24,6 +24,16 @@ on:
         type: boolean
         required: false
         default: true
+      signer_identity_regexp:
+        description: >
+          Regexp the signing certificate's identity must match. Keyless signing
+          binds the identity to the workflow the signing job is DEFINED in, which
+          is this platform's own build-scan-sign.yml — not the repository being
+          deployed. Defaults to that workflow in <owner>/platform; override only
+          if a caller's images are signed somewhere else.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -63,17 +73,51 @@ jobs:
       - uses: sigstore/cosign-installer@v4.1.2
         if: ${{ inputs.verify_signature }}
 
+      # cosign takes its registry credentials from the docker config, and the
+      # images this deploys are private packages. Without a login it never reaches
+      # the signature at all: ghcr answers the anonymous token request with
+      # UNAUTHORIZED, and the gate below reports that as "could not verify" — a
+      # step that looks like it ran when it never got started.
+      - name: Log in to ghcr so cosign can read the signature
+        if: ${{ inputs.verify_signature }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify the image signature before it touches the VM
         if: ${{ inputs.verify_signature }}
-        continue-on-error: true
+        env:
+          IMAGE_REF: ${{ inputs.image_ref }}
+          SIGNER_IDENTITY_REGEXP: ${{ inputs.signer_identity_regexp }}
+          PLATFORM_OWNER: ${{ github.repository_owner }}
         run: |
-          # The identity is this repo's build workflow — a compromised registry
-          # cannot substitute an image that was signed by something else.
-          cosign verify "${{ inputs.image_ref }}" \
-            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+          set -euo pipefail
+
+          # Keyless signing binds the certificate identity to the workflow the
+          # signing job is DEFINED in. That job lives in build-scan-sign.yml here
+          # in the platform, so the identity reads
+          #   https://github.com/<owner>/platform/.github/workflows/build-scan-sign.yml@<ref>
+          # This used to match on `github.repository`, which inside a reusable
+          # workflow is the CALLING repo — a string the certificate can never
+          # carry. So the gate could not have passed even with credentials.
+          identity="${SIGNER_IDENTITY_REGEXP:-}"
+          if [[ -z "$identity" ]]; then
+            identity="^https://github\.com/${PLATFORM_OWNER}/platform/\.github/workflows/build-scan-sign\.yml@"
+          fi
+
+          # No `continue-on-error`, no `|| warning`. The input above says this
+          # refuses to deploy an image it cannot verify; swallowing the result
+          # made that promise false, and an unverified image reached the VM with
+          # nothing but an annotation to show for it. Failing here is the point:
+          # every step that touches the VM comes after this one.
+          cosign verify "$IMAGE_REF" \
+            --certificate-identity-regexp "$identity" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            >/dev/null && echo "Signature verified." \
-            || echo "::warning::Could not verify the signature for ${{ inputs.image_ref }}."
+            >/dev/null
+
+          echo "Signature verified against: $identity"
 
       - name: Configure SSH
         env:
