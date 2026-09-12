@@ -64,7 +64,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: m
-        uses: arteamis-system/platform/actions/load-manifest@v1
+        # This dispatcher is being canaried by arteamis-backend before the
+        # platform change is promoted to v1. Keep both changed components on the
+        # reviewed commit so registry_user cannot be parsed by one version and
+        # consumed by another.
+        uses: arteamis-system/platform/actions/load-manifest@21f5de8a53bd5a59226490076969e565466e59bb
         with:
           path: ${{ inputs.manifest_path }}
 
@@ -110,7 +114,7 @@ jobs:
     name: deploy
     needs: [manifest, build]
     if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vm' }}
-    uses: arteamis-system/platform/.github/workflows/deploy-vm.yml@v1
+    uses: arteamis-system/platform/.github/workflows/deploy-vm.yml@21f5de8a53bd5a59226490076969e565466e59bb
     with:
       project:        ${{ needs.manifest.outputs.project }}
       component:      ${{ needs.manifest.outputs.component }}
