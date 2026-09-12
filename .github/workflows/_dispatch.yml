@@ -34,6 +34,7 @@ jobs:
       context:         ${{ steps.m.outputs.context }}
       image:           ${{ steps.m.outputs.image }}
       target:          ${{ steps.m.outputs.target }}
+      registry_user:   ${{ steps.m.outputs.registry_user }}
       service:         ${{ steps.m.outputs.service }}
       container_name:  ${{ steps.m.outputs.container_name }}
       compose_file:    ${{ steps.m.outputs.compose_file }}
@@ -116,6 +117,7 @@ jobs:
       environment:    ${{ needs.manifest.outputs.environment }}
       image:          ${{ needs.manifest.outputs.image }}
       image_ref:      ${{ needs.build.outputs.image_ref }}
+      registry_user:  ${{ needs.manifest.outputs.registry_user }}
       service:        ${{ needs.manifest.outputs.service }}
       container_name: ${{ needs.manifest.outputs.container_name }}
       compose_file:   ${{ needs.manifest.outputs.compose_file }}

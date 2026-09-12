@@ -12,6 +12,7 @@ on:
       environment:    { type: string, required: true }
       image:          { type: string, required: true }
       image_ref:      { type: string, required: true }
+      registry_user:  { type: string, required: false, default: "" }
       service:        { type: string, required: true }
       container_name: { type: string, required: true }
       compose_file:   { type: string, required: false, default: docker-compose.prod.yml }
@@ -47,11 +48,17 @@ jobs:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_USER: ${{ inputs.registry_user }}
         run: |
           missing=()
           if [[ -z "$VM_HOST"    ]]; then missing+=("VM_HOST"); fi
           if [[ -z "$VM_USER"    ]]; then missing+=("VM_USER"); fi
           if [[ -z "$VM_SSH_KEY" ]]; then missing+=("VM_SSH_KEY"); fi
+          if [[ -n "$GHCR_PULL_TOKEN" && -z "$GHCR_USER" ]]; then
+            echo "::error::GHCR_PULL_TOKEN requires deploy.registry_user so the PAT is paired with its owner."
+            exit 1
+          fi
           if (( ${#missing[@]} )); then
             echo "::error::Missing secrets for the '${{ inputs.environment }}' environment: ${missing[*]}"
             echo "::error::Add them under Settings → Environments → ${{ inputs.environment }} → Environment secrets."
@@ -85,6 +92,51 @@ jobs:
           printf '%s\n' "$VM_SSH_KEY" >~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$VM_PORT" -H "$VM_HOST" >>~/.ssh/known_hosts 2>/dev/null
+
+      # Authenticate and pull before changing compose, runtime secrets or image.env
+      # on the VM. A bad registry credential must leave the live deployment wholly
+      # untouched, rather than producing a new-config/old-container split.
+      - name: Preflight image pull on the VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_USER: ${{ inputs.registry_user }}
+          JOB_TOKEN: ${{ github.token }}
+          JOB_USER: ${{ github.actor }}
+        run: |
+          # A dedicated PAT is optional. For a package owned by this repository,
+          # the short-lived job token is safer and already has packages:read.
+          if [[ -n "$GHCR_PULL_TOKEN" ]]; then
+            registry_token="$GHCR_PULL_TOKEN"
+            registry_user="$GHCR_USER"
+          else
+            registry_token="$JOB_TOKEN"
+            registry_user="$JOB_USER"
+          fi
+
+          ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+            IMAGE_REF='${{ inputs.image_ref }}' \
+            GHCR_USER="$registry_user" \
+            GHCR_TOKEN="$registry_token" \
+            bash -se <<'REMOTE'
+          set -euo pipefail
+
+          auth_dir=$(mktemp -d /tmp/platform-ghcr-auth.XXXXXX)
+          cleanup() {
+            rm -f "$auth_dir/config.json"
+            rmdir "$auth_dir" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          printf '%s\n' "$GHCR_TOKEN" \
+            | docker --config "$auth_dir" login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+          unset GHCR_TOKEN
+          docker --config "$auth_dir" pull "$IMAGE_REF"
+          docker image inspect "$IMAGE_REF" >/dev/null
+          echo "Image pull preflight passed."
+          REMOTE
 
       - name: Ship the compose file
         env:
@@ -152,22 +204,15 @@ jobs:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
           VM_PORT: ${{ secrets.VM_PORT || '22' }}
-          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
           ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
             REMOTE_PATH='${{ inputs.remote_path }}' \
             SERVICE='${{ inputs.service }}' \
             CONTAINER='${{ inputs.container_name }}' \
             IMAGE_REF='${{ inputs.image_ref }}' \
-            GHCR_USER='${{ github.actor }}' \
-            GHCR_TOKEN="$GHCR_PULL_TOKEN" \
             bash -se <<'REMOTE'
           set -euo pipefail
           cd "$REMOTE_PATH"
-
-          if [[ -n "${GHCR_TOKEN:-}" ]]; then
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
-          fi
 
           # Compose files declare `env_file: [.env]`. The .env is shipped by CI from
           # Infisical when configured, or placed on the host out of band otherwise.
@@ -178,10 +223,10 @@ jobs:
           previous=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || echo "")
           echo "Currently running: ${previous:-<nothing>}"
 
-          docker compose --env-file image.env pull "$SERVICE"
-
           roll() {
-            docker compose --env-file image.env up -d --no-deps --force-recreate "$SERVICE"
+            # The exact digest passed its pull preflight before any deploy files
+            # changed. Never contact the registry during the state-changing step.
+            docker compose --env-file image.env up -d --no-deps --force-recreate --pull never "$SERVICE"
           }
 
           wait_healthy() {

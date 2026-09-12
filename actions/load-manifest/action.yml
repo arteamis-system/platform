@@ -27,6 +27,7 @@ outputs:
   image:           { description: Fully qualified GHCR image name,     value: "${{ steps.parse.outputs.image }}" }
 
   target:          { description: vm | vercel | none,                  value: "${{ steps.parse.outputs.target }}" }
+  registry_user:   { description: Account paired with GHCR_PULL_TOKEN, value: "${{ steps.parse.outputs.registry_user }}" }
   service:         { description: docker compose service name,         value: "${{ steps.parse.outputs.service }}" }
   container_name:  { description: Running container name,              value: "${{ steps.parse.outputs.container_name }}" }
   compose_file:    { description: Compose file shipped to the VM,      value: "${{ steps.parse.outputs.compose_file }}" }

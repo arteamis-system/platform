@@ -65,6 +65,7 @@ jobs:
             coverage_min: 60
           deploy:
             target: vm
+            registry_user: deploy-bot
             environments:
               staging:   { branch: deploy/staging }
               production: { branch: deploy/prod }
@@ -77,6 +78,7 @@ jobs:
           grep -qx 'should_build=true' /tmp/out.env
           grep -qx 'should_deploy=true' /tmp/out.env
           grep -qx 'remote_path=/opt/tasmil/ai' /tmp/out.env
+          grep -qx 'registry_user=deploy-bot' /tmp/out.env
           grep -qx 'image=ghcr.io/devsecops-playground-org/tasmil-ai' /tmp/out.env
 
       - name: A pull request never deploys
