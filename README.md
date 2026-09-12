@@ -116,6 +116,7 @@ Push. That is the onboarding.
 | `build.dockerfile` / `build.context` | no | `Dockerfile` / `.` | Image build inputs. |
 | `build.image` | no | `ghcr.io/<owner>/<repo>` | Override the image name. |
 | `deploy.target` | no | `none` | `vm` · `vercel` · `none` |
+| `deploy.registry_user` | no | — | Account that owns `GHCR_PULL_TOKEN`; required when that PAT is configured. |
 | `deploy.service` | no | `component` | Compose service to recreate. |
 | `deploy.container_name` | no | `project-component` | Container the health check watches. |
 | `deploy.compose_file` | no | `docker-compose.prod.yml` | Shipped to the VM as `docker-compose.yml`. |
@@ -176,7 +177,7 @@ a push to `deploy/prod` pauses for a human before anything changes.
 |---|---|---|
 | `VM_HOST` `VM_USER` `VM_SSH_KEY` | environment | every `target: vm` repo |
 | `VM_PORT` | environment | optional, defaults to 22 |
-| `GHCR_PULL_TOKEN` | environment | only if the image package is private |
+| `GHCR_PULL_TOKEN` | environment | optional PAT fallback for packages the job token cannot read; pair with `deploy.registry_user` |
 | `VERCEL_TOKEN` `VERCEL_ORG_ID` `VERCEL_PROJECT_ID` | environment | every `target: vercel` repo |
 | `INFISICAL_CLIENT_ID` `INFISICAL_CLIENT_SECRET` | organisation | optional secrets manager |
 | `ANTHROPIC_API_KEY` | organisation | only when `ai_review: true` |
