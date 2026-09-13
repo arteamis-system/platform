@@ -144,16 +144,29 @@ jobs:
           # device", with a prune sitting a hundred lines further down the same
           # workflow that would have freed the space.
           #
-          # Same two-part restraint the roll step's prune shows, and for the same
-          # reason: this VM is shared with other components. Dangling layers belong
-          # to no image, and build cache belongs to no container, so both are safe
-          # to take. Stopped containers are not pruned — another component may be
-          # keeping one deliberately, and a rollback target is exactly the kind of
-          # thing that looks disposable and is not.
+          # `dangling=true` cannot reclaim a deploy like this one, and the first
+          # attempt at this fix proved it: 1.6 GB free before the prune, 1.6 GB
+          # after, on a host whose largest single object was a 12.6 GB image no
+          # container referenced.
+          #
+          # The reason is the deploy model. Images arrive here by digest, so each
+          # one keeps a repo-digest reference for as long as it exists. It prints
+          # as <none>/<none> and reads like garbage, but Docker does not consider
+          # it dangling and no dangling filter will ever remove it. Every past
+          # deploy therefore accumulated, on a VM that pruned after every
+          # successful deploy — the cleanup had been a no-op since it was written.
+          #
+          # `-a` with an age filter is what actually reclaims. It is still not a
+          # blanket prune: an image any container references is never removed, so
+          # the running service and its neighbours on this shared VM are safe by
+          # construction rather than by hoping the filter is narrow enough. The
+          # week keeps rollback targets — the roll step below rolls back to the
+          # previous image, and a deploy cadence measured in hours means seven days
+          # is many rollbacks deep.
           docker_root=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
           echo "Disk before reclaim:"
           df -h "$docker_root" || true
-          docker --config "$auth_dir" image prune -f --filter "dangling=true" >/dev/null 2>&1 || true
+          docker --config "$auth_dir" image prune -af --filter "until=168h" 2>&1 | tail -1 || true
           docker builder prune -f >/dev/null 2>&1 || true
           echo "Disk after reclaim:"
           df -h "$docker_root" || true
@@ -303,9 +316,12 @@ jobs:
             exit 1
           fi
 
-          # Only dangling layers — never a blanket prune that would evict images
-          # belonging to the other components sharing this VM.
-          docker image prune -f --filter "dangling=true" >/dev/null
+          # Matches the preflight reclaim, and for the same reason: images pulled
+          # by digest never become dangling, so the filter that used to be here
+          # removed nothing at all. Still never a blanket prune — `-a` leaves any
+          # image a container references, which is what protects the other
+          # components sharing this VM, and the week protects rollback targets.
+          docker image prune -af --filter "until=168h" >/dev/null || true
           echo "Deployed $SERVICE at $IMAGE_REF"
           REMOTE
 
