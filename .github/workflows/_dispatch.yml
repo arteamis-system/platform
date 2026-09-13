@@ -114,7 +114,7 @@ jobs:
     name: deploy
     needs: [manifest, build]
     if: ${{ needs.manifest.outputs.should_deploy == 'true' && needs.manifest.outputs.target == 'vm' }}
-    uses: arteamis-system/platform/.github/workflows/deploy-vm.yml@21f5de8a53bd5a59226490076969e565466e59bb
+    uses: arteamis-system/platform/.github/workflows/deploy-vm.yml@9126d396ac4a04d0151176371ce650f3fee4f69e
     with:
       project:        ${{ needs.manifest.outputs.project }}
       component:      ${{ needs.manifest.outputs.component }}
