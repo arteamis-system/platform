@@ -133,7 +133,44 @@ jobs:
           printf '%s\n' "$GHCR_TOKEN" \
             | docker --config "$auth_dir" login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
           unset GHCR_TOKEN
-          docker --config "$auth_dir" pull "$IMAGE_REF"
+
+          # Reclaim before pulling, not after deploying.
+          #
+          # The roll step already prunes dangling layers, but it does that on the
+          # way out, after a healthy container. That ordering cannot recover a VM
+          # that is already full: the pull happens first, so the disk that needs
+          # clearing is what stops the run from ever reaching the line that clears
+          # it. A deploy died exactly there — mid-extract, "no space left on
+          # device", with a prune sitting a hundred lines further down the same
+          # workflow that would have freed the space.
+          #
+          # Same two-part restraint the roll step's prune shows, and for the same
+          # reason: this VM is shared with other components. Dangling layers belong
+          # to no image, and build cache belongs to no container, so both are safe
+          # to take. Stopped containers are not pruned — another component may be
+          # keeping one deliberately, and a rollback target is exactly the kind of
+          # thing that looks disposable and is not.
+          docker_root=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
+          echo "Disk before reclaim:"
+          df -h "$docker_root" || true
+          docker --config "$auth_dir" image prune -f --filter "dangling=true" >/dev/null 2>&1 || true
+          docker builder prune -f >/dev/null 2>&1 || true
+          echo "Disk after reclaim:"
+          df -h "$docker_root" || true
+
+          # On failure, say what is actually consuming the disk. Unqualified, the
+          # pull reports only the one layer that could not be written, which names
+          # a Python wheel and implies the image is at fault — the next reader goes
+          # looking in the wrong repository. `docker system df` names the real
+          # tenant, and if the safe reclaim above was not enough, this output is
+          # what decides whether the answer is a bigger disk or a human choosing
+          # which component's images to evict.
+          if ! docker --config "$auth_dir" pull "$IMAGE_REF"; then
+            echo "::error::Image pull failed on the VM. Disk and image usage follow."
+            df -h "$docker_root" || true
+            docker system df -v 2>/dev/null | head -40 || docker system df || true
+            exit 1
+          fi
           docker image inspect "$IMAGE_REF" >/dev/null
           echo "Image pull preflight passed."
           REMOTE
