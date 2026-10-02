@@ -74,7 +74,7 @@ Shared CI/CD for every `arteamis-system` repo.
 
 ## Branch state (checked 2026-09-30)
 
-- **`main` = tag `v1` = `30b465c`.** Backend and frontend `dev` and `main` pin it.
+- **Tag `v1` = `30b465c`.** Backend and frontend `dev` and `main` pin it. `main` can be ahead of `v1`, because the tag moves only when you release.
 - **`fix/reclaim-disk-before-pull`:** 6 commits, including `fix/ghcr-deploy-auth-preflight`. Backend `deploy/prod` pins `033d7e4` on this branch. It is not merged.
 - **PR #1, `fix/cosign-verify-actually-verifies`:** open. On `main`, the signature check has three problems:
   - `continue-on-error: true`
