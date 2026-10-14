@@ -216,3 +216,10 @@ breaks everyone's deploys.
   git tag -f v1 && git push -f origin v1
   ```
 - `CODEOWNERS` requires review on workflows, actions, modules and policy.
+
+## Arteamis production source and handoff
+
+- [Deployment handoff](releases/DEPLOYMENT_HANDOFF.md): final-source release order, configuration gaps and dated verification limits.
+- [Feature release inventory](releases/refactor-2026-10-14.json): accepted areas remain unreleased until verified.
+- [Environment roots](environments/README.md) and [production inventory](ops/production-inventory.json).
+- `ops/check-production.py` is read-only. `ops/restore-backup.sh` restores into a new disposable container only.

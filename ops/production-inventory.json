@@ -1,0 +1,60 @@
+{
+  "checked_at": "2026-10-14",
+  "production_changed": false,
+  "aws": {
+    "region": "ap-southeast-1",
+    "account": "779035457064",
+    "instance": "i-0cf3e4052471fccaf",
+    "root_volume": "vol-0041896965268ce7e",
+    "data_volume": "vol-0582f8e96ea04955b",
+    "data_gib": 20,
+    "eip_allocation": "eipalloc-04761da854170e997",
+    "security_group": "sg-0c1f3e4b97e20f9c7",
+    "instance_profile": null,
+    "dlm_policies": 0,
+    "observed_data_volume_snapshots": 0
+  },
+  "offsite": {
+    "configured": true,
+    "provider": "Existing S3-compatible storage outside AWS",
+    "objects_seen": 12,
+    "latest_modified": "2026-09-20T15:46:16.278Z",
+    "restore_verified": "2026-10-14",
+    "tables": 88,
+    "rows": 1452,
+    "revision": "x8convrefused",
+    "freshness": "stale"
+  },
+  "fresh_production_copy_drill": {
+    "tables": 88,
+    "rows": 1589,
+    "revision": "x8convrefused",
+    "restore_verified": "2026-10-14"
+  },
+  "read_only_checks": {
+    "checked_at": "2026-10-14T10:58:14Z",
+    "checks": {
+      "api_ready": false,
+      "api_container": true,
+      "worker_running": false,
+      "postgres_healthy": true,
+      "data_disk_below_85_percent": true,
+      "backup_within_24_hours": false,
+      "tls_valid_for_14_days": true,
+      "standalone_plane_stopped": true
+    },
+    "ready_status": 404,
+    "tls_days": 72.5,
+    "disk_used_percent": 0.4,
+    "backup_age_hours": 571.2
+  },
+  "legacy_gcp": {
+    "status": "unverified",
+    "blocker": "Existing gcloud login cannot refresh; no host change attempted"
+  },
+  "standalone_plane": {
+    "production_host": "no running service found",
+    "local_docker": "no standalone service found",
+    "data_volumes": "preserved"
+  }
+}

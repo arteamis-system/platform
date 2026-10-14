@@ -1,0 +1,194 @@
+# Canonical production assembly, shipped by platform deploy-vm as docker-compose.yml.
+# Backend owns the image commands, migrations and infra/ helper SQL shipped beside it.
+#
+# IMPORTANT — why nothing here uses ${VAR} interpolation for secrets:
+# deploy-vm runs `docker compose --env-file image.env`, and --env-file REPLACES the
+# default .env rather than adding to it. Any ${POSTGRES_PASSWORD} in this file would
+# therefore interpolate to an empty string at deploy time and the backend would come
+# up with a passwordless DSN. So secrets travel through `env_file: [.env]`, which is
+# read per-service at container start and is unaffected by --env-file.
+#
+# .env on the VM is written by the platform's inject-secrets action from the repo's
+# GitHub Environment secrets. POSTGRES_URL and POSTGRES_URL_SYNC are set there, not
+# built here, for the same reason.
+#
+# IMAGE is the one interpolated value, supplied by CI in image.env as a digest so the
+# VM runs exactly the artefact that was scanned and signed. The fallback only exists
+# so `docker compose up -d postgres` can be run by hand on a fresh box before the
+# first deploy — CI always overrides it.
+name: arteamis
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: arteamis-postgres
+    restart: unless-stopped
+    # POSTGRES_PASSWORD comes from here, not from `environment:` — see the note above.
+    env_file: [.env.infra]
+    environment:
+      POSTGRES_DB: arteamis
+      POSTGRES_USER: postgres
+    volumes:
+      - pgcluster:/var/lib/postgresql/data
+      # Runs once on an empty data dir: creates the pgvector extension the migrations
+      # need, and the NOSUPERUSER arteamis_app role that makes RLS actually evaluate.
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./infra/rls_helpers:/docker-entrypoint-initdb.d/rls_helpers:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d arteamis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - arteamis-net
+
+  # One-shot phases also run against existing data directories. The infrastructure
+  # credential is never mounted into the API, migration, or worker container.
+  db-bootstrap:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    restart: "no"
+    env_file: [.env, .env.infra]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python /backend/scripts/bootstrap_database.py
+    healthcheck:
+      disable: true
+    networks: [arteamis-net]
+
+  # The pre-migration dump needs the infrastructure credential: the ordinary owner
+  # cannot dump tables that FORCE row-level security. A failed dump stops the
+  # release before any migration runs (BACKUP_REQUIRED).
+  db-backup:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    restart: "no"
+    env_file: [.env, .env.infra]
+    environment:
+      BACKUP_REQUIRED: "true"
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+    command: sh /backend/scripts/pre_migrate_backup.sh
+    healthcheck:
+      disable: true
+    volumes: [backups:/backups]
+    networks: [arteamis-net]
+
+  db-migrate:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    restart: "no"
+    env_file: [.env]
+    environment:
+      APP_ENV: production
+      PYTHONPATH: /backend
+    depends_on:
+      db-backup:
+        condition: service_completed_successfully
+    command: alembic upgrade head
+    healthcheck:
+      disable: true
+    networks: [arteamis-net]
+
+  db-finalize:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    restart: "no"
+    env_file: [.env.infra]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    command: >-
+      sh -ec 'psql -X --dbname "$$INFRA_DATABASE_URL" -v ON_ERROR_STOP=1
+      -f /backend/infra/rls_helpers/10_finalize_knowledge_helpers.sql &&
+      psql -X --dbname "$$INFRA_DATABASE_URL" -v ON_ERROR_STOP=1
+      -f /backend/infra/rls_helpers/20_finalize_ownership_helpers.sql &&
+      psql -X --dbname "$$INFRA_DATABASE_URL" -v ON_ERROR_STOP=1
+      -f /backend/infra/rls_helpers/30_finalize_stream_helper.sql &&
+      psql -X --dbname "$$INFRA_DATABASE_URL" -v ON_ERROR_STOP=1
+      -f /backend/infra/rls_helpers/40_finalize_native_push.sql'
+    healthcheck:
+      disable: true
+    networks: [arteamis-net]
+
+  backend:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    container_name: arteamis-backend
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      APP_ENV: production
+      # App code lives at /backend/app but isn't installed into site-packages.
+      # uvicorn's CLI adds cwd to sys.path; the `alembic` console script does NOT,
+      # so without this alembic dies with "No module named 'app'".
+      PYTHONPATH: /backend
+    depends_on:
+      db-finalize:
+        condition: service_completed_successfully
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=4)\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - uploads:/uploads
+      - backups:/backups
+    networks:
+      - arteamis-net
+
+  worker:
+    image: ${IMAGE:-ghcr.io/arteamis-system/backend:latest}
+    container_name: arteamis-worker
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      APP_ENV: production
+      PYTHONPATH: /backend
+    # /ready verifies the finalized helper permissions before jobs can run.
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: python /backend/scripts/start_ready_worker.py
+    healthcheck:
+      disable: true
+    volumes:
+      - uploads:/uploads
+    networks:
+      - arteamis-net
+
+# Bind-bound to the attached data disk so Postgres data and uploads survive a VM
+# rebuild. The device dirs are created by the VM's startup script with the uids the
+# containers run as (999 for the pgvector image, 10001 for the backend) — Docker does
+# not copy image ownership onto bind mounts.
+volumes:
+  # `pgcluster`, not the original `pgdata`: the first production cluster was
+  # initialised with `arteamis` as its bootstrap superuser, and PostgreSQL never lets
+  # that role lose SUPERUSER. scripts/cutover_cluster_superuser.sh moves the data
+  # into this cluster, initialised as `postgres`, and leaves /mnt/arteamis_data/pgdata
+  # untouched as the rollback copy. See docs/rls-test-provisioning.md.
+  pgcluster:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/arteamis_data/pgcluster
+  uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/arteamis_data/uploads
+  # Pre-migration dumps. On the same disk the daily snapshot covers, so a bad
+  # migration has both a fast local restore and a point-in-time one.
+  backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/arteamis_data/backups
+
+networks:
+  arteamis-net:
+    driver: bridge

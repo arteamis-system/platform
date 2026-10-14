@@ -81,6 +81,15 @@ jobs:
           echo "sha=$sha" >>"$GITHUB_OUTPUT"
           echo "Platform revision: $sha"
 
+      - name: Check out the reviewed platform assembly
+        if: ${{ startsWith(inputs.compose_file, 'platform:') }}
+        uses: actions/checkout@v7
+        with:
+          repository: arteamis-system/platform
+          ref: ${{ steps.platform.outputs.sha }}
+          path: .platform-release
+          persist-credentials: false
+
       # A deploy that fails halfway because a secret is missing is worse than one
       # that never starts. Everything required is checked up front, by name.
       - name: Validate deploy secrets
@@ -286,10 +295,20 @@ jobs:
           VM_USER: ${{ secrets.VM_USER }}
           VM_PORT: ${{ secrets.VM_PORT || '22' }}
         run: |
+          compose_source="${{ inputs.compose_file }}"
+          if [[ "$compose_source" == platform:* ]]; then
+            relative="${compose_source#platform:}"
+            if [[ "$relative" == /* || "$relative" == *..* ]]; then
+              echo "::error::Platform compose path must stay inside its checkout"
+              exit 1
+            fi
+            compose_source=".platform-release/$relative"
+          fi
+          test -f "$compose_source"
           ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
             "mkdir -p '${{ inputs.remote_path }}'"
           scp -i ~/.ssh/deploy_key -P "$VM_PORT" \
-            "${{ inputs.compose_file }}" \
+            "$compose_source" \
             "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/docker-compose.yml"
 
       # Files the compose file mounts from beside itself, from the same commit, so
