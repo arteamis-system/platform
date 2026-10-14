@@ -94,6 +94,81 @@ jobs:
           grep -qx 'environment=' /tmp/out2.env
           grep -qx 'should_deploy=false' /tmp/out2.env
 
+      - name: Production from main deploys only on a dispatch that names it
+        env:
+          REPO: arteamis-system/backend
+        run: |
+          cat >/tmp/main.yml <<'YML'
+          project: arteamis
+          component: backend
+          deploy:
+            target: vm
+            service: backend
+            phases: [db-bootstrap, db-backup, db-migrate, db-finalize]
+            services: [backend, worker]
+            migration_phase: db-migrate
+            ship: [infra]
+            environments:
+              production: { branch: main, trigger: dispatch, url: https://api.example.test }
+          YML
+          export MANIFEST=/tmp/main.yml GITHUB_STEP_SUMMARY=/tmp/summary.md
+          run() { : >"$GITHUB_OUTPUT"; EVENT_NAME="$1" REF_NAME="$2" DISPATCH_ENVIRONMENT="$3" ./actions/load-manifest/parse.sh; }
+
+          export GITHUB_OUTPUT=/tmp/push.env
+          run push main ""
+          grep -qx 'should_deploy=false' /tmp/push.env   # a merge to main is not a release
+
+          export GITHUB_OUTPUT=/tmp/plain-dispatch.env
+          run workflow_dispatch main ""
+          grep -qx 'should_deploy=false' /tmp/plain-dispatch.env
+
+          export GITHUB_OUTPUT=/tmp/release.env
+          run workflow_dispatch main production
+          cat /tmp/release.env
+          grep -qx 'environment=production' /tmp/release.env
+          grep -qx 'should_deploy=true' /tmp/release.env
+          grep -qx 'phases=db-bootstrap db-backup db-migrate db-finalize' /tmp/release.env
+          grep -qx 'services=backend worker' /tmp/release.env
+          grep -qx 'migration_phase=db-migrate' /tmp/release.env
+          grep -qx 'ship=infra' /tmp/release.env
+
+          export GITHUB_OUTPUT=/tmp/wrong-ref.env
+          if run workflow_dispatch feature/x production; then
+            echo "::error::a production release from a non-main ref was accepted"
+            exit 1
+          fi
+
+      - name: A mirror frontend resolves its mirror branch per environment
+        env:
+          MANIFEST: /tmp/web.yml
+          EVENT_NAME: workflow_dispatch
+          REF_NAME: main
+          DISPATCH_ENVIRONMENT: production
+          REPO: arteamis-system/web
+        run: |
+          cat >/tmp/web.yml <<'YML'
+          project: arteamis
+          component: frontend
+          type: frontend
+          deploy:
+            target: mirror
+            mirror: { repo: deployer/web, user: deployer }
+            environments:
+              production: { branch: main, trigger: dispatch, mirror_branch: main }
+          YML
+          export GITHUB_OUTPUT=/tmp/web.env GITHUB_STEP_SUMMARY=/tmp/summary.md
+          : >/tmp/web.env
+          ./actions/load-manifest/parse.sh
+          grep -qx 'should_deploy=true' /tmp/web.env
+          grep -qx 'should_build=false' /tmp/web.env
+          grep -qx 'mirror_repo=deployer/web' /tmp/web.env
+          grep -qx 'mirror_branch=main' /tmp/web.env
+          printf 'project: a\ncomponent: b\ndeploy:\n  target: mirror\n' >/tmp/web-bad.yml
+          if MANIFEST=/tmp/web-bad.yml ./actions/load-manifest/parse.sh; then
+            echo "::error::a mirror target without a mirror repo was accepted"
+            exit 1
+          fi
+
       - name: An invalid manifest fails loudly
         env:
           MANIFEST: /tmp/bad.yml

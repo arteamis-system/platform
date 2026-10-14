@@ -17,22 +17,22 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
   2. **`security-gate.yml`:** gitleaks over the full history, semgrep, trivy fs (fails on HIGH/CRITICAL), checkov.
   3. **`ci-test.yml`:** the manifest's `test.lint`, then `test.command`, then the coverage gate, then an optional AI review.
   4. **`build-scan-sign.yml`:** buildx to GHCR, trivy image scan (fails on CRITICAL), syft SBOM, cosign signing. An image already built for the same commit is re-tagged, not rebuilt.
-  5. **`deploy-vm.yml` or `deploy-vercel.yml`**
+  5. **`deploy-vm.yml`, `deploy-vercel.yml` or `deploy-mirror.yml`**, each recording the release as a GitHub deployment (`task=release`) with the image or mirror, the source commit and the platform revision.
   6. **Optional soak:** `tester-agent.yml`.
   7. **Summary.**
-- **The environment is chosen from the pushed branch** (`actions/load-manifest/parse.sh`):
-  - A push or manual run on a branch listed under `deploy.environments` deploys to that environment.
+- **The environment is chosen from the ref** (`actions/load-manifest/parse.sh`):
+  - `trigger: push` (the default): a push or manual run on the environment's branch deploys to it.
+  - `trigger: dispatch`: only a manual run on that branch whose `deploy_environment` input names the environment deploys. Production from `main` uses this, so a merge to `main` runs the gates without releasing.
   - A pull request never deploys.
   - Soak runs only after a staging deploy, and only when the tester is enabled. Neither app repo enables it.
 - **`deploy-vm.yml` steps:**
-  1. Validate the environment's secrets.
-  2. Attempt the configured cosign image check (the current `main` check has the blocking caveats listed below; do not claim it enforces verification).
-  3. Ship the compose file and a `.env`. The `.env` comes from `actions/inject-secrets`, using Infisical or GitHub environment secrets.
+  1. Validate the environment's secrets, then verify the image signature with cosign; an unverifiable image fails the deploy.
+  2. Preflight-pull the digest on the VM (after reclaiming disk).
+  3. Ship the compose file, `deploy.ship` paths, the `.env` (from `actions/inject-secrets`) and `.env.infra` (from the `VM_ENV_INFRA` secret, never part of `.env`).
   4. Pin the image digest.
-  5. Run `docker compose pull`, then `up -d --no-deps --force-recreate <service>`.
-  6. Wait for the health check.
-  7. On failure, roll back to the previous image.
-- **Backend migrations require a separate release sequence.** The VM workflow's service-only `--no-deps` rollout does not run the brain backend's bootstrap/migration/helper-finalization phases or restart its worker. Read `../arteamis-backend/docs/rls-test-provisioning.md`; a release with schema/helper changes must complete those phases before traffic/workers, with the release image digest pinned throughout.
+  5. Without `deploy.phases`: `up -d --no-deps --force-recreate <service>`, wait for health, roll back to the previous image on failure.
+  6. With `deploy.phases`: stop `deploy.services`, run the phases and services in compose dependency order, wait for health. A failure before `deploy.migration_phase` starts rolls the services back; after it, services stay stopped for a person, because a container swap does not undo a migration.
+  7. Record the release.
 
 ## Other folders
 
@@ -69,12 +69,11 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
   - Manifest-parser cases are inline in `.github/workflows/selftest.yml`, not a standalone test script. They require mikefarah `yq` v4 (CI uses 4.44.3), temporary manifest/output files and explicit event/ref/repo variables. Reproduce service/production, PR/no-deploy and invalid-manifest cases when changing the parser.
   - For Terraform changes, also run `terraform init -backend=false -input=false` and `terraform validate` inside each affected `modules/<name>/`. Local module validation is not a cloud plan/apply or rollout.
   - Keep dependency directories, generated manifests and test output out of commits. Guidance-only changes need path/command verification and `git diff --check`, not deployment or cloud mutation.
-- **To release:**
-  1. Merge to `main` and verify.
-  2. Move the tag: `git tag -f v1 && git push -f origin v1`.
-  3. App repos then bump the pinned SHA in their `ci.yml` deliberately, after reading the diff.
-- **Caveat:** on `main`, `_dispatch.yml` calls its stages with `@v1`, so a pinned dispatcher still runs whatever `v1` points at. Branch `fix/reclaim-disk-before-pull` pins the stages by SHA instead.
-  - Inspect nested reusable workflows and composite-action pins too before describing the entire dependency tree as immutable. Moving `v1` affects existing callers even before their dispatcher SHA is bumped; agree a platform release explicitly.
+- **To release a platform change:**
+  1. Merge the component change to `main` and verify `selftest`.
+  2. In a second change, repoint `_dispatch.yml`'s internal `uses:` (and nested action pins) at that `main` commit, then merge it.
+  3. App repos bump the `_dispatch.yml@<sha>` pin in their `ci.yml` deliberately, after reading the diff.
+  - Pins are commit SHAs, not `v1`: a tag can be moved silently and every caller inherits secrets. `v1` remains for older callers only.
 - **`CODEOWNERS`:** @FromSunNews owns everything.
 - **`.pre-commit-config.yaml`** is the same file the scaffolder seeds into new repos. It runs:
   - gitleaks
@@ -83,13 +82,7 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
   - YAML checks
   - a check for files over 2 MB
 
-## Branch state (checked 2026-10-02 after fetching origin)
+## Branch state (checked 2026-10-14)
 
-- **Tag `v1` = `30b465c`.** Backend and frontend `dev` and `main` pin it. `main` can be ahead of `v1`, because the tag moves only when you release.
-- **`fix/reclaim-disk-before-pull`:** 6 commits, including `fix/ghcr-deploy-auth-preflight`. Backend `deploy/prod` pins `033d7e4` on this branch. It is not merged.
-- **PR #1, `fix/cosign-verify-actually-verifies`:** open. On `main`, the signature check has three problems:
-  - `continue-on-error: true`
-  - no registry login
-  - an identity pattern that can never match
-- **PR #2, `perf/registry-build-cache`:** open.
-- Before this refresh, local `main` at `b67ad8b` was two guidance commits ahead of `origin/main`; those commits and this refresh do not move `v1`. Recheck refs/pins and PR state before relying on this snapshot.
+- PRs #1 (signature enforcement), #2 (registry build cache), #4 (guidance) and #5 (GHCR auth and disk reclaim, previously deployed from `fix/reclaim-disk-before-pull`) are merged into `main`. Their branches are kept until callers re-pin.
+- Tag `v1` = `30b465c` is unchanged.

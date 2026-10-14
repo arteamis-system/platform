@@ -106,20 +106,71 @@ compose_file="$(q '.deploy.compose_file' 'docker-compose.prod.yml')"
 remote_path="$(q '.deploy.remote_path' "/opt/${project}/${component}")"
 health_path="$(q '.deploy.health.path' '')"
 health_port="$(q '.deploy.health.port' '')"
+# A phased VM release: one-shot compose services (bootstrap, backup, migrate...)
+# that run in order before the long-running services. Empty keeps the original
+# single-service `--no-deps` roll.
+phases="$(yq -r '.deploy.phases // [] | join(" ")' "$MANIFEST")"
+services="$(yq -r '.deploy.services // [] | join(" ")' "$MANIFEST")"
+if [[ -z "$services" ]]; then
+  services="$service"
+fi
+# Once this phase has started, the schema may have changed, so a failed release
+# is left stopped for a person instead of being rolled back to the previous image.
+migration_phase="$(q '.deploy.migration_phase' '')"
+# Extra paths shipped beside the compose file (for example the SQL the database
+# container mounts at first initialisation).
+ship="$(yq -r '.deploy.ship // [] | join(" ")' "$MANIFEST")"
+# target: mirror pushes the validated commit to a repository a hosting provider
+# builds from (a Vercel project owned by a machine account, for example).
+mirror_repo="$(q '.deploy.mirror.repo' '')"
+mirror_user="$(q '.deploy.mirror.user' '')"
+if [[ "$target" == "mirror" && -z "$mirror_repo" ]]; then
+  echo "::error::deploy.target is mirror but deploy.mirror.repo is missing" >&2
+  exit 1
+fi
+if [[ -n "$migration_phase" && " $phases " != *" $migration_phase "* ]]; then
+  echo "::error::deploy.migration_phase '$migration_phase' is not one of deploy.phases" >&2
+  exit 1
+fi
 
 # Resolve which environment this ref deploys to. A pull request never deploys.
+#
+# An environment's trigger is `push` (every push to its branch deploys: the
+# original deploy-branch model) or `dispatch` (only a manual run on its branch
+# that names it). `dispatch` lets main carry reviewed source without every merge
+# reaching production: a release is a deliberate run of the same pipeline, gates
+# included, on a main commit.
+requested="${DISPATCH_ENVIRONMENT:-}"
 environment=""
 url=""
+mirror_branch=""
 if [[ "$EVENT_NAME" == "push" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
   while IFS= read -r env; do
     if [[ -z "$env" ]]; then continue; fi
     branch="$(q ".deploy.environments.${env}.branch" '')"
-    if [[ "$branch" == "$REF_NAME" ]]; then
-      environment="$env"
-      url="$(q ".deploy.environments.${env}.url" '')"
-      break
-    fi
+    trigger="$(q ".deploy.environments.${env}.trigger" 'push')"
+    if [[ "$branch" != "$REF_NAME" ]]; then continue; fi
+    case "$trigger" in
+      push)
+        if [[ -n "$requested" && "$requested" != "$env" ]]; then continue; fi
+        ;;
+      dispatch)
+        if [[ "$EVENT_NAME" != "workflow_dispatch" || "$requested" != "$env" ]]; then continue; fi
+        ;;
+      *)
+        echo "::error::deploy.environments.${env}.trigger must be push|dispatch, got '$trigger'" >&2
+        exit 1
+        ;;
+    esac
+    environment="$env"
+    url="$(q ".deploy.environments.${env}.url" '')"
+    mirror_branch="$(q ".deploy.environments.${env}.mirror_branch" "$env")"
+    break
   done < <(yq -r '.deploy.environments // {} | keys | .[]' "$MANIFEST")
+fi
+if [[ -n "$requested" && -z "$environment" ]]; then
+  echo "::error::A deploy to '$requested' was requested, but '$REF_NAME' is not its branch." >&2
+  exit 1
 fi
 
 should_build=false
@@ -159,6 +210,13 @@ emit compose_file "$compose_file"
 emit remote_path "$remote_path"
 emit health_path "$health_path"
 emit health_port "$health_port"
+emit phases "$phases"
+emit services "$services"
+emit migration_phase "$migration_phase"
+emit ship "$ship"
+emit mirror_repo "$mirror_repo"
+emit mirror_user "$mirror_user"
+emit mirror_branch "$mirror_branch"
 emit environment "$environment"
 emit url "$url"
 emit should_build "$should_build"

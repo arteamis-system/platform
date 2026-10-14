@@ -9,6 +9,12 @@ inputs:
     description: Path to the manifest inside the caller repository.
     required: false
     default: .platform.yml
+  deploy_environment:
+    description: >-
+      Environment a manual run asks to deploy. Required for environments whose
+      trigger is `dispatch`; must match the ref's environment otherwise.
+    required: false
+    default: ""
 
 outputs:
   project:         { description: Project family name,                 value: "${{ steps.parse.outputs.project }}" }
@@ -34,6 +40,13 @@ outputs:
   remote_path:     { description: Deploy directory on the VM,          value: "${{ steps.parse.outputs.remote_path }}" }
   health_path:     { description: HTTP health endpoint,                value: "${{ steps.parse.outputs.health_path }}" }
   health_port:     { description: Container port to health check,      value: "${{ steps.parse.outputs.health_port }}" }
+  phases:          { description: One-shot compose phases run before services, value: "${{ steps.parse.outputs.phases }}" }
+  services:        { description: Long-running compose services to roll,  value: "${{ steps.parse.outputs.services }}" }
+  migration_phase: { description: Phase after which no automatic rollback, value: "${{ steps.parse.outputs.migration_phase }}" }
+  ship:            { description: Extra paths shipped beside the compose file, value: "${{ steps.parse.outputs.ship }}" }
+  mirror_repo:     { description: owner/repo a mirror deploy pushes to,    value: "${{ steps.parse.outputs.mirror_repo }}" }
+  mirror_user:     { description: Account that owns the mirror push token, value: "${{ steps.parse.outputs.mirror_user }}" }
+  mirror_branch:   { description: Mirror branch for the resolved environment, value: "${{ steps.parse.outputs.mirror_branch }}" }
 
   environment:     { description: "Resolved environment; empty when this ref does not deploy", value: "${{ steps.parse.outputs.environment }}" }
   url:             { description: Public URL for this environment,     value: "${{ steps.parse.outputs.url }}" }
@@ -92,4 +105,5 @@ runs:
         EVENT_NAME: ${{ github.event_name }}
         REF_NAME: ${{ github.ref_name }}
         REPO: ${{ github.repository }}
+        DISPATCH_ENVIRONMENT: ${{ inputs.deploy_environment }}
       run: ${{ github.action_path }}/parse.sh

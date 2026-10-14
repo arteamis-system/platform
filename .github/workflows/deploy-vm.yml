@@ -1,8 +1,17 @@
 name: deploy-vm
 
-# Deploy exactly one compose service onto a VM that may host several components.
-# `up -d --no-deps <service>` is what makes a push to tasmil-ai leave tasmil-backend
-# and tasmil-mcp running untouched on the same box.
+# Deploy a component's compose services onto a VM that may host several components.
+#
+# Without `phases`, exactly one service is recreated with `up -d --no-deps`, which
+# is what lets a push to tasmil-ai leave tasmil-backend and tasmil-mcp untouched.
+#
+# With `phases` (one-shot services such as bootstrap, backup, migrate, finalize),
+# the release stops the long-running services, runs the phases in their compose
+# dependency order, then starts the services again: a schema change must finish
+# before any API or worker process sees the new catalog. A failure before the
+# `migration_phase` starts rolls the services back to the previous image; after it,
+# the release stops and leaves the services down for a person, because replacing
+# containers does not roll back a migrated database.
 
 on:
   workflow_call:
@@ -20,6 +29,10 @@ on:
       health_path:    { type: string, required: false, default: "" }
       health_port:    { type: string, required: false, default: "" }
       url:            { type: string, required: false, default: "" }
+      phases:          { type: string, required: false, default: "" }
+      services:        { type: string, required: false, default: "" }
+      migration_phase: { type: string, required: false, default: "" }
+      ship:            { type: string, required: false, default: "" }
       verify_signature:
         description: Refuse to deploy an image that cosign cannot verify.
         type: boolean
@@ -40,6 +53,7 @@ permissions:
   contents: read
   packages: read
   id-token: write
+  deployments: write # the release record
 
 jobs:
   deploy:
@@ -50,6 +64,21 @@ jobs:
       url: ${{ inputs.url }}
     steps:
       - uses: actions/checkout@v7
+
+      # Which platform commit is running this release. Reusable workflows cannot
+      # see their own revision in the expression contexts, but the job's OIDC
+      # token states it (`job_workflow_sha`), signed by GitHub.
+      - name: Identify the platform revision
+        id: platform
+        run: |
+          set -euo pipefail
+          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=release-record" | jq -r .value)
+          claims=$(cut -d. -f2 <<<"$token" | tr '_-' '/+')
+          while (( ${#claims} % 4 )); do claims+="="; done
+          sha=$(base64 -d <<<"$claims" | jq -r .job_workflow_sha)
+          echo "sha=$sha" >>"$GITHUB_OUTPUT"
+          echo "Platform revision: $sha"
 
       # A deploy that fails halfway because a secret is missing is worse than one
       # that never starts. Everything required is checked up front, by name.
@@ -244,12 +273,53 @@ jobs:
             "${{ inputs.compose_file }}" \
             "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/docker-compose.yml"
 
+      # Files the compose file mounts from beside itself, from the same commit, so
+      # a database initialised later never runs stale SQL.
+      - name: Ship supporting files
+        if: ${{ inputs.ship != '' }}
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          SHIP: ${{ inputs.ship }}
+        run: |
+          set -euo pipefail
+          read -r -a paths <<<"$SHIP"
+          tar -czf - -- "${paths[@]}" \
+            | ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+                "cd '${{ inputs.remote_path }}' && tar -xzf -"
+          echo "Shipped: $SHIP"
+
+      # Infrastructure credentials for one-shot phases only (`env_file: [.env.infra]`).
+      # `VM_*` secrets never reach the application .env, so this one cannot leak
+      # into the API, migration or worker containers through inject-secrets.
+      - name: Ship the infrastructure env
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          VM_ENV_INFRA: ${{ secrets.VM_ENV_INFRA }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VM_ENV_INFRA:-}" ]]; then
+            echo "::notice::No VM_ENV_INFRA secret; leaving any .env.infra on the VM untouched."
+            exit 0
+          fi
+          umask 077
+          printf '%s\n' "$VM_ENV_INFRA" >"$RUNNER_TEMP/infra.env"
+          scp -i ~/.ssh/deploy_key -P "$VM_PORT" "$RUNNER_TEMP/infra.env" \
+            "$VM_USER@$VM_HOST:${{ inputs.remote_path }}/.env.infra"
+          ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+            "chmod 600 '${{ inputs.remote_path }}/.env.infra'"
+          rm -f "$RUNNER_TEMP/infra.env"
+          echo "Shipped .env.infra (contents masked)."
+
       # Runtime application secrets: pulled from Infisical into a .env and shipped
       # to the VM for the compose `env_file: [.env]`. Never stored in the repo. When
       # Infisical is not configured this yields an empty file and the real .env is
       # expected out-of-band on the box (placed once, survives redeploys).
       - name: Resolve runtime secrets → .env
-        uses: arteamis-system/platform/actions/inject-secrets@v1
+        uses: arteamis-system/platform/actions/inject-secrets@51d6ba7ba7bf61ac43ffa65a6c6466435e8c11b2
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -304,6 +374,9 @@ jobs:
             SERVICE='${{ inputs.service }}' \
             CONTAINER='${{ inputs.container_name }}' \
             IMAGE_REF='${{ inputs.image_ref }}' \
+            PHASES='${{ inputs.phases }}' \
+            SERVICES='${{ inputs.services || inputs.service }}' \
+            MIGRATION_PHASE='${{ inputs.migration_phase }}' \
             bash -se <<'REMOTE'
           set -euo pipefail
           cd "$REMOTE_PATH"
@@ -345,6 +418,59 @@ jobs:
             return 1
           }
 
+          if [[ -n "$PHASES" ]]; then
+            read -r -a phases <<<"$PHASES"
+            read -r -a services <<<"$SERVICES"
+            compose=(docker compose --env-file image.env)
+
+            phase_started() {
+              local id
+              id=$("${compose[@]}" ps -a -q "$1" 2>/dev/null | head -1)
+              [[ -n "$id" ]] || return 1
+              [[ "$(docker inspect --format '{{.State.StartedAt}}' "$id")" != 0001-01-01T00:00:00Z ]]
+            }
+
+            # Stop consumers first, newest dependants first, so nothing reads a
+            # catalog that is being changed underneath it.
+            for (( i=${#services[@]}-1; i>=0; i-- )); do
+              "${compose[@]}" stop "${services[$i]}" 2>/dev/null || true
+            done
+            # Remove the previous run's one-shot containers so "started" below
+            # can only mean "started by this release".
+            "${compose[@]}" rm -f "${phases[@]}" >/dev/null 2>&1 || true
+
+            # Compose runs the phases in dependency order and refuses to start a
+            # dependant whose predecessor failed or is unhealthy.
+            if "${compose[@]}" up -d --force-recreate --pull never "${phases[@]}" "${services[@]}" && wait_healthy; then
+              docker image prune -af --filter "until=168h" >/dev/null || true
+              "${compose[@]}" ps -a
+              echo "Deployed ${PHASES} -> ${SERVICES} at $IMAGE_REF"
+              exit 0
+            fi
+
+            "${compose[@]}" ps -a || true
+            for name in "${phases[@]}" "${services[@]}"; do
+              echo "--- $name"
+              "${compose[@]}" logs --tail 40 "$name" 2>&1 || true
+            done
+            if [[ -n "$MIGRATION_PHASE" ]] && phase_started "$MIGRATION_PHASE"; then
+              "${compose[@]}" stop "${services[@]}" 2>/dev/null || true
+              echo "::error::The release failed after $MIGRATION_PHASE started. The schema may have changed,"
+              echo "::error::so the previous image was NOT restarted. Services are stopped; restore or fix forward."
+              exit 1
+            fi
+            if [[ -n "$previous" ]]; then
+              echo "No migration ran; rolling the services back to $previous"
+              printf 'IMAGE=%s\n' "$previous" >image.env
+              if "${compose[@]}" up -d --no-deps --force-recreate --pull never "${services[@]}" && wait_healthy; then
+                echo "Rolled back successfully; the previous version is serving again."
+              else
+                echo "Rollback also failed — this VM needs a human."
+              fi
+            fi
+            exit 1
+          fi
+
           roll
           if ! wait_healthy; then
             docker logs --tail 80 "$CONTAINER" 2>&1 || true
@@ -378,7 +504,42 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| image | \`${{ inputs.image_ref }}\` |"
-            echo "| compose service | \`${{ inputs.service }}\` (recreated with \`--no-deps\`) |"
+            if [[ -n "${{ inputs.phases }}" ]]; then
+              echo "| phases | \`${{ inputs.phases }}\` |"
+              echo "| services | \`${{ inputs.services || inputs.service }}\` |"
+            else
+              echo "| compose service | \`${{ inputs.service }}\` (recreated with \`--no-deps\`) |"
+            fi
+            echo "| source | \`${{ github.sha }}\` |"
+            echo "| platform | \`${{ steps.platform.outputs.sha }}\` |"
             echo "| result | ${{ steps.roll.outcome }} |"
             if [[ -n "${{ inputs.url }}" ]]; then echo "| url | ${{ inputs.url }} |"; fi
           } >>"$GITHUB_STEP_SUMMARY"
+
+      # The release record: which source, artifact and platform revision this
+      # environment was given, and whether it took. A GitHub deployment is durable
+      # and queryable (`gh api repos/<repo>/deployments?task=release`), unlike a
+      # job summary or an expiring artifact.
+      - name: Record the release
+        if: ${{ always() && steps.roll.outcome != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.roll.outcome }}
+          IMAGE_REF: ${{ inputs.image_ref }}
+          PLATFORM_SHA: ${{ steps.platform.outputs.sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          URL: ${{ inputs.url }}
+        run: |
+          set -euo pipefail
+          jq -n --arg ref "$GITHUB_SHA" --arg env "$ENVIRONMENT" --arg image "$IMAGE_REF" \
+                --arg platform "$PLATFORM_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{ref: $ref, environment: $env, task: "release", auto_merge: false, required_contexts: [],
+              production_environment: ($env == "production"),
+              description: ("image " + ($image | split("@") | last | .[0:19])),
+              payload: {image_ref: $image, platform_sha: $platform, run: $run}}' >"$RUNNER_TEMP/deployment.json"
+          id=$(gh api "repos/$GITHUB_REPOSITORY/deployments" --input "$RUNNER_TEMP/deployment.json" --jq .id)
+          state=$([[ "$OUTCOME" == "success" ]] && echo success || echo failure)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" \
+            -f state="$state" -f environment_url="$URL" \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >/dev/null
+          echo "Recorded release deployment $id ($state)."
