@@ -1,0 +1,588 @@
+{
+  "checked_at": "2026-10-14",
+  "policy": "Preserve all local/remote branches and tags; no branch deletion or pruning",
+  "repositories": {
+    "backend": {
+      "selected_base": "origin/chore/consolidate-main",
+      "refs": [
+        {
+          "ref": "chore/consolidate-main",
+          "tip": "a00be931d06ac70402d061edd1aea08b596460c0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "cleanup/source-export-and-chat-services",
+          "tip": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "dev",
+          "tip": "9afca9dc4592f1e839199c61e85d25448255307e",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "fix/team-chat-acceptance-status",
+          "tip": "9afca9dc4592f1e839199c61e85d25448255307e",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "fix/team-chat-completion",
+          "tip": "d867e1d0d5352728f97eee8d2eb77a39857063bc",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "main",
+          "tip": "f707c9cf0e743de9ed3a3c09335dfa66f11fda10",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "refactor/source-export-and-chat-services",
+          "tip": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "f707c9cf0e743de9ed3a3c09335dfa66f11fda10",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/chore/consolidate-main",
+          "tip": "a00be931d06ac70402d061edd1aea08b596460c0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/chore/mint-biscuit-key",
+          "tip": "314e5f2d82b13a31873e3274bf6c442e7451b839",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/cleanup/source-export-and-chat-services",
+          "tip": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/deploy/prod",
+          "tip": "cc6657752b9f1921dcf665af4be774a0c5a789ae",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/dev",
+          "tip": "9afca9dc4592f1e839199c61e85d25448255307e",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/biscuit-capability-tokens",
+          "tip": "82f546385612d8db1ed73ab20c19ad2c6fb32918",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/fix-ui-2",
+          "tip": "1ce62ef9f746885c713dba2494b881a00d32e257",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/fixing-according-feedback-ui",
+          "tip": "1e27915402229db74286e7e1be2493d1b67dcb8e",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/task-breakdown-assignment",
+          "tip": "c4ddf7ef3577a8dda35d29f922011ba0f43d9608",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/task-scoped-mcp-export",
+          "tip": "d9e454cd61e24a9f086e3c7023eaa6019c71112a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/workspace-channels",
+          "tip": "c02c1cdac5573b5caef99232e486e5b9149b3208",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/base-image-critical-cves",
+          "tip": "97a77babbfb0dddac370d493251ae67cc18dea71",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/deploy-disk-reclaim",
+          "tip": "e88117b3c8d6c57ccee0b7144274f79ed53b44d1",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/deploy-prune-by-age",
+          "tip": "4e95a846e065bc5fc031f5d05bb10ab6850b855a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/feedback-from-chenjia",
+          "tip": "41e67e7597483755d2a0f2d7ee4ac00b91193879",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/mcp-task-export-auth",
+          "tip": "98187167824a9364491f0ffba38f2a468bcce57a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/personal-brain",
+          "tip": "0de340d447230a08afcc487384740b10b778fde5",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/prod-deploy-auth",
+          "tip": "53bf3da35a617bfd218c2d8e6d4c15df3dc160af",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/prod-image-critical-cves",
+          "tip": "3b3801d0d3729d03e5e2a659bb2df4709a65f42c",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/rule-evidence-chain",
+          "tip": "9370d87f0aeabc3d6c9582329f9349ca0fdd7a26",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "f707c9cf0e743de9ed3a3c09335dfa66f11fda10",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/pr/11",
+          "tip": "ccae4750827b051007481e2ff682721e3c5de8f5",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/refactor",
+          "tip": "b7993427e7727c04822b67122be385468766eeb7",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "archive/refactor-2026-08",
+          "tip": "2e22f4ef08e74af7cad931948da9537368cce90d",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "archive/team-chat-completion-local",
+          "tip": "9a929a7be8a43579903e373b7ca5da128110af6e",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "release/prod-2026-09-20",
+          "tip": "2dc023883e3005f653dd7f2a4a02cfa8ad5da8f6",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    },
+    "web": {
+      "selected_base": "origin/main",
+      "refs": [
+        {
+          "ref": "chore/consolidate-main",
+          "tip": "7c35802b0b6f3e134b1356734b1b9b9b34e741c2",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "dev",
+          "tip": "0a0ba42be330f4353876061ab785ee13f70e74d0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "fix/team-chat-acceptance-status",
+          "tip": "0a0ba42be330f4353876061ab785ee13f70e74d0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "main",
+          "tip": "07a9572ca4239cc33cee5cbc42c15cf5acaa25d8",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "refactor/docs-list-and-demo-boundaries",
+          "tip": "34623794466dd36b12101c4a8e5e7d66be5145fe",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "07a9572ca4239cc33cee5cbc42c15cf5acaa25d8",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/chore/consolidate-main",
+          "tip": "7c35802b0b6f3e134b1356734b1b9b9b34e741c2",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/deploy/prod",
+          "tip": "845752813b1e3a31d0ffb89a5131313d1c42fae8",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/dev",
+          "tip": "0a0ba42be330f4353876061ab785ee13f70e74d0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/personal-brain",
+          "tip": "cbf8490c865ad30d44383705c2d6c763b2c0f530",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "07a9572ca4239cc33cee5cbc42c15cf5acaa25d8",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/pr/5",
+          "tip": "fd241d6849abc8a0adf464d7499229d9483342ca",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/pr/6",
+          "tip": "700f484ee809d30337b4d5ccb4db08740b418588",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/refactor/docs-list-and-demo-boundaries",
+          "tip": "34623794466dd36b12101c4a8e5e7d66be5145fe",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "archive/refactor-2026-08",
+          "tip": "4d97775b6b029b1ecbe4f138015c9f64bde56789",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "release/prod-2026-09-20",
+          "tip": "615bcc33a210ddff5083caaa546b035dfe69e672",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    },
+    "desktop": {
+      "selected_base": "origin/main",
+      "refs": [
+        {
+          "ref": "docs/team-chat-acceptance-status",
+          "tip": "e51ec8fb20718b1675f2b56c5be1e6761fe349df",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "main",
+          "tip": "23d55245f197a191403a377bcd3a22d6ac9573f3",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "refactor/desktop-only",
+          "tip": "3b7e580905fd5bb20f5b7dfae8c66d8c009bbc50",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "23d55245f197a191403a377bcd3a22d6ac9573f3",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/playbook-compliance-pilot",
+          "tip": "5a712e2e1cab8663145cf10f0eabcba310f2ab47",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/agent-turn-delivery",
+          "tip": "9f5c179918234af3ebb1ddbc19313225f7cee356",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "23d55245f197a191403a377bcd3a22d6ac9573f3",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/refactor/desktop-only",
+          "tip": "3b7e580905fd5bb20f5b7dfae8c66d8c009bbc50",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "archive/plane-backend-final",
+          "tip": "d127b342e92cef04d0fe481b74ed82453f6c9145",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "archive/playbook-compliance-pilot",
+          "tip": "0cf9bab5c0358e84cd58be9639c45afeedbcdcc5",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    },
+    "landing": {
+      "selected_base": "origin/main",
+      "refs": [
+        {
+          "ref": "main",
+          "tip": "3d64ed00061fb5511d3717458cb8ce3febdd1f2a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "refactor/shared-backend-subscription",
+          "tip": "668faa8a93ae2942f98dcd03c9ff2c184aa97784",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "3d64ed00061fb5511d3717458cb8ce3febdd1f2a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "3d64ed00061fb5511d3717458cb8ce3febdd1f2a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/refactor/shared-backend-subscription",
+          "tip": "668faa8a93ae2942f98dcd03c9ff2c184aa97784",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    },
+    "product": {
+      "selected_base": "origin/main",
+      "refs": [
+        {
+          "ref": "docs/product-engineering-split",
+          "tip": "e5e5e362c4edc2d9fbfffae25effd0a9a9a52ee0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "docs/team-chat-acceptance-status",
+          "tip": "761bbca3cb492a3881cfcabe77cd1d9a7eef92ee",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "main",
+          "tip": "c21f32eae40412abc3a0aac0af1417518cc1e6a6",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "c21f32eae40412abc3a0aac0af1417518cc1e6a6",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/docs/product-engineering-split",
+          "tip": "e5e5e362c4edc2d9fbfffae25effd0a9a9a52ee0",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "c21f32eae40412abc3a0aac0af1417518cc1e6a6",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    },
+    "platform": {
+      "selected_base": "origin/main",
+      "refs": [
+        {
+          "ref": "ci/repin-and-centralize-client-checks",
+          "tip": "8cf60dbb7cb7b663b3b7ec8230f6a9be5f87b544",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "feat/main-release-model",
+          "tip": "a8592696e9616144ebfa9e888ec87e82f427429e",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "feat/release-preflight",
+          "tip": "7fee8b7d322517ac4a4a4c70905c8da3cb31085a",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "feat/repoint-dispatcher",
+          "tip": "b78908584740009a8ec0710710a9252b4b6fca82",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "fix/verified-action-pins-and-docs-check",
+          "tip": "f6c158a922ddf561eda00b9de71205bce405a3fd",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "main",
+          "tip": "6773d5baacc5d15867b0805291a6acd8cb7a1d34",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "ops/production-inventory-and-adoption",
+          "tip": "57ec2fc28154f30d40dc56ea9c2438f2c8ab90e9",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin",
+          "tip": "6773d5baacc5d15867b0805291a6acd8cb7a1d34",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/ci/repin-and-centralize-client-checks",
+          "tip": "8cf60dbb7cb7b663b3b7ec8230f6a9be5f87b544",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/docs/publish-consolidated-main",
+          "tip": "f7e59f90c9b84ec77b7db6f57c4183237769d96e",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/main-release-model",
+          "tip": "a8592696e9616144ebfa9e888ec87e82f427429e",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/release-preflight",
+          "tip": "7fee8b7d322517ac4a4a4c70905c8da3cb31085a",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/feat/repoint-dispatcher",
+          "tip": "b78908584740009a8ec0710710a9252b4b6fca82",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/cosign-verify-actually-verifies",
+          "tip": "3a5d7933caf5a0355c76385b8968f5e3609ed5d5",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/ghcr-deploy-auth-preflight",
+          "tip": "7555daf61e03fbec22a91d0362ae955e04afc8e1",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/reclaim-disk-before-pull",
+          "tip": "033d7e4b21f772c7b416050e3b2e277a1bbf1728",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/fix/verified-action-pins-and-docs-check",
+          "tip": "f6c158a922ddf561eda00b9de71205bce405a3fd",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/main",
+          "tip": "6773d5baacc5d15867b0805291a6acd8cb7a1d34",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/ops/production-inventory-and-adoption",
+          "tip": "57ec2fc28154f30d40dc56ea9c2438f2c8ab90e9",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "origin/perf/registry-build-cache",
+          "tip": "f1a56697c535b5536f0b263bc54dbe896a505e94",
+          "ancestor_of_selected_base": false,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        },
+        {
+          "ref": "v1",
+          "tip": "30b465cdcc300381915a79c771f4f86aadfccf5a",
+          "ancestor_of_selected_base": true,
+          "disposition": "preserved; ancestry is evidence only, not a decision to discard unique work"
+        }
+      ]
+    }
+  }
+}
