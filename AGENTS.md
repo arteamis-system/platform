@@ -1,6 +1,6 @@
 # platform
 
-Shared CI/CD used by the brain backend and website frontend in `arteamis-system`. Plane has its own desktop workflows, and the product-docs repo has no application pipeline.
+Shared CI/CD used by the brain backend and website frontend in `arteamis-system`. Desktop, landing and product use the shared desktop, browser and documentation workflows; product has documentation delivery rather than an application runtime.
 - It is a fork of `devsecops-playground-org/platform`.
 - It lives in this org because GitHub passes empty secrets to a reusable workflow in a different org.
 - **Its shared workflows are production dependencies for their callers. A bad change can break every caller's pipeline.**
@@ -36,6 +36,7 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
 
 ## Other folders
 
+- Client/document workflows: `ci-desktop.yml`, `release-desktop.yml`, `ci-browser.yml` and `docs-check.yml`. Application repositories keep pinned entry points. Desktop release remains manual, on main, and defaults to an unsigned internal pre-release.
 - `actions/`: composite actions: `load-manifest`, `setup-runtime`, `coverage-gate`, `ai-review`, `inject-secrets`, `cloud-oidc-login`, `report-findings` (Node).
 - `modules/`: Terraform.
   - VMs: `vm` (DigitalOcean), `vm-aws`, `vm-gcp`.
@@ -50,7 +51,8 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
 
 - **Every internal `uses:` must point at `arteamis-system/platform`.** After rebasing on upstream, re-apply that rewrite.
 - **`selftest.yml` checks:**
-  - actionlint
+  - actionlint, and resolution of every internal action/workflow SHA and path
+  - documentation checker acceptance/rejection tests
   - shellcheck on `actions/*/*.sh`
   - manifest-parser cases
   - the tester-agent build and tests

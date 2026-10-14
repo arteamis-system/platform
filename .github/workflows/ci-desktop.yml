@@ -1,0 +1,86 @@
+# Builds and tests the macOS desktop shell. It has no secrets and
+# produces an unsigned debug app, so it is safe on pull requests. Signing and
+# notarising live in desktop-release.yml, which only runs by hand.
+name: desktop
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request replaces the running check. Runs on
+# main finish, so every merge gets a result.
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PNPM_VERSION: "11.17.0"
+
+jobs:
+  shell:
+    name: Build and test the macOS shell
+    # An Apple Silicon runner. Pinned to a version, not macos-latest, so the
+    # toolchain does not change under a pull request.
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install --global "pnpm@$PNPM_VERSION"
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust (stable)
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          echo "version=$(rustc --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+        id: rust
+
+      - name: Cache Cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src-tauri/target
+          key: cargo-desktop-root-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.version }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            cargo-desktop-root-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.version }}-
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint Rust (fmt, clippy)
+        run: pnpm lint:rust
+
+      - name: Test Rust (origin and navigation rules)
+        run: pnpm test:rust
+
+      - name: Test the release preflight
+        run: pnpm test:release-preflight
+
+      # Ad-hoc signed, debug profile. The origin baked in here only decides
+      # where this throwaway build would point; nobody runs it.
+      - name: Build an unsigned debug app
+        run: pnpm build:production
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.9.28"
+          enable-cache: false
+
+      - name: Check the app bundle
+        run: pnpm test:macos-bundle
