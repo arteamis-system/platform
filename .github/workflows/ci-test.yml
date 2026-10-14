@@ -38,7 +38,7 @@ jobs:
         with:
           fetch-depth: 0 # the AI reviewer diffs against the base commit
 
-      - uses: arteamis-system/platform/actions/setup-runtime@v1
+      - uses: arteamis-system/platform/actions/setup-runtime@51d6ba7ba7bf61ac43ffa65a6c6466435e8c11b2
         with:
           runtime: ${{ inputs.runtime }}
           package_manager: ${{ inputs.package_manager }}
@@ -54,13 +54,13 @@ jobs:
       - name: Coverage gate
         id: cov
         if: ${{ always() && steps.run.outcome == 'success' }}
-        uses: arteamis-system/platform/actions/coverage-gate@v1
+        uses: arteamis-system/platform/actions/coverage-gate@51d6ba7ba7bf61ac43ffa65a6c6466435e8c11b2
         with:
           minimum: ${{ inputs.coverage_min }}
 
       - name: AI review
         if: ${{ always() && inputs.ai_review }}
-        uses: arteamis-system/platform/actions/ai-review@v1
+        uses: arteamis-system/platform/actions/ai-review@51d6ba7ba7bf61ac43ffa65a6c6466435e8c11b2
         with:
           component: ${{ inputs.component }}
           runtime: ${{ inputs.runtime }}

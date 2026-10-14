@@ -1,0 +1,121 @@
+name: deploy-mirror
+
+# Deploy by pushing the validated commit to a mirror repository that a hosting
+# provider builds from.
+#
+# Used where the hosting account cannot read the organisation's private repository
+# directly: arteamis-frontend's Vercel project is owned by the `the-morca-deployer`
+# machine account and builds its mirror. This used to be a workflow inside the
+# frontend repository; it lives here so the platform owns every delivery path and
+# the push only happens after the same pipeline's gates passed on this commit.
+
+on:
+  workflow_call:
+    inputs:
+      component:     { type: string, required: true }
+      environment:   { type: string, required: true }
+      url:           { type: string, required: false, default: "" }
+      mirror_repo:   { type: string, required: true } # owner/repo
+      mirror_user:   { type: string, required: true }
+      mirror_branch: { type: string, required: true }
+
+permissions:
+  contents: read
+  id-token: write
+  deployments: write # the release record
+
+jobs:
+  mirror:
+    name: deploy ${{ inputs.component }} → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.url }}
+    concurrency:
+      group: mirror-${{ inputs.mirror_repo }}-${{ inputs.mirror_branch }}
+      cancel-in-progress: false
+    steps:
+      - name: Identify the platform revision
+        id: platform
+        run: |
+          set -euo pipefail
+          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=release-record" | jq -r .value)
+          claims=$(cut -d. -f2 <<<"$token" | tr '_-' '/+')
+          while (( ${#claims} % 4 )); do claims+="="; done
+          sha=$(base64 -d <<<"$claims" | jq -r .job_workflow_sha)
+          echo "sha=$sha" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0 # the mirror gets real history, not a graft
+          persist-credentials: false # never let the job token reach the mirror push
+
+      # Vercel attributes a deployment to the tip commit's author, and a Hobby
+      # project only builds commits from its owner.
+      - name: Put the deployer's name on the tip commit
+        env:
+          MIRROR_USER: ${{ inputs.mirror_user }}
+        run: |
+          set -euo pipefail
+          git config user.name "$MIRROR_USER"
+          git config user.email "$MIRROR_USER@users.noreply.github.com"
+          git commit --allow-empty -m "chore(deploy): ${{ inputs.environment }} @ ${GITHUB_SHA}"
+
+      - name: Push to the mirror
+        id: push
+        env:
+          DEPLOYER_PAT: ${{ secrets.DEPLOYER_PAT }}
+          MIRROR_USER: ${{ inputs.mirror_user }}
+          MIRROR_REPO: ${{ inputs.mirror_repo }}
+          MIRROR_BRANCH: ${{ inputs.mirror_branch }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOYER_PAT:-}" ]]; then
+            echo "::error::DEPLOYER_PAT is not set: the mirror account's token with repo scope."
+            echo "::error::gh secret set DEPLOYER_PAT --repo ${GITHUB_REPOSITORY}"
+            exit 1
+          fi
+          git push --force \
+            "https://${MIRROR_USER}:${DEPLOYER_PAT}@github.com/${MIRROR_REPO}.git" \
+            "HEAD:refs/heads/${MIRROR_BRANCH}"
+          echo "Mirror ${MIRROR_REPO}:${MIRROR_BRANCH} updated; the provider builds from there."
+
+      - name: Record the release
+        if: ${{ always() && steps.push.outcome != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.push.outcome }}
+          PLATFORM_SHA: ${{ steps.platform.outputs.sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          URL: ${{ inputs.url }}
+          MIRROR: ${{ inputs.mirror_repo }}:${{ inputs.mirror_branch }}
+        run: |
+          set -euo pipefail
+          jq -n --arg ref "$GITHUB_SHA" --arg env "$ENVIRONMENT" --arg mirror "$MIRROR" \
+                --arg platform "$PLATFORM_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{ref: $ref, environment: $env, task: "release", auto_merge: false, required_contexts: [],
+              production_environment: ($env == "production"),
+              description: ("mirror " + $mirror),
+              payload: {mirror: $mirror, platform_sha: $platform, run: $run}}' >"$RUNNER_TEMP/deployment.json"
+          id=$(gh api "repos/$GITHUB_REPOSITORY/deployments" --input "$RUNNER_TEMP/deployment.json" --jq .id)
+          state=$([[ "$OUTCOME" == "success" ]] && echo success || echo failure)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" \
+            -f state="$state" -f environment_url="$URL" \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >/dev/null
+          echo "Recorded release deployment $id ($state)."
+
+      - name: Summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### Deploy — \`${{ inputs.component }}\` → **${{ inputs.environment }}** (mirror)"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| source | \`${GITHUB_SHA}\` |"
+            echo "| mirror | \`${{ inputs.mirror_repo }}:${{ inputs.mirror_branch }}\` |"
+            echo "| platform | \`${{ steps.platform.outputs.sha }}\` |"
+            echo "| result | ${{ steps.push.outcome }} |"
+          } >>"$GITHUB_STEP_SUMMARY"
