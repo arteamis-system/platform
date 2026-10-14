@@ -120,6 +120,9 @@ migration_phase="$(q '.deploy.migration_phase' '')"
 # Extra paths shipped beside the compose file (for example the SQL the database
 # container mounts at first initialisation).
 ship="$(yq -r '.deploy.ship // [] | join(" ")' "$MANIFEST")"
+# A command run on the VM, in the component's directory, before the release
+# changes anything there. Non-zero aborts the release with the box untouched.
+preflight="$(q '.deploy.preflight' '')"
 # target: mirror pushes the validated commit to a repository a hosting provider
 # builds from (a Vercel project owned by a machine account, for example).
 mirror_repo="$(q '.deploy.mirror.repo' '')"
@@ -214,6 +217,7 @@ emit phases "$phases"
 emit services "$services"
 emit migration_phase "$migration_phase"
 emit ship "$ship"
+emit preflight "$preflight"
 emit mirror_repo "$mirror_repo"
 emit mirror_user "$mirror_user"
 emit mirror_branch "$mirror_branch"
