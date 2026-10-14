@@ -4,9 +4,10 @@
   "source_candidates": {
     "backend": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
     "web": "34623794466dd36b12101c4a8e5e7d66be5145fe",
-    "desktop": "23d55245f197a191403a377bcd3a22d6ac9573f3",
-    "landing": "e04ce30665b8a2789845969719bf14344fedd35d",
-    "product": "c21f32eae40412abc3a0aac0af1417518cc1e6a6"
+    "desktop": "a5fe2381a4359fcb2c8de809121226aa45b3225b",
+    "landing": "668faa8a93ae2942f98dcd03c9ff2c184aa97784",
+    "product": "e5e5e362c4edc2d9fbfffae25effd0a9a9a52ee0",
+    "platform": "6a38387c6e1fc670118fb37069744b47c67393e1"
   },
   "features": [
     {
@@ -144,5 +145,14 @@
       "archive_tag": "desktop:archive/plane-backend-final",
       "note": "Source removed; no data migration or volume destruction"
     }
-  ]
+  ],
+  "source_mains": {
+    "backend": "4fde91c63b1076e7af9abe6ff039df5709cb7c12",
+    "web": "07a9572ca4239cc33cee5cbc42c15cf5acaa25d8",
+    "desktop": "e82dab2858c9fefbdb7a3868da249ea4bbbf6a81",
+    "landing": "3d64ed00061fb5511d3717458cb8ce3febdd1f2a",
+    "product": "c21f32eae40412abc3a0aac0af1417518cc1e6a6",
+    "platform": "98b7575865beb0b561324875e1fba30af1c78f77"
+  },
+  "source_integration_evidence": "source-integration-2026-10-14.json"
 }

@@ -8,6 +8,16 @@ not a claim that the feature backlog is live.
 
 ## Source and checks
 
+Source consolidation is complete on all six main branches. The
+[source integration record](source-integration-2026-10-14.json) pins the reviewed
+commits, successful CI runs and source-tree comparisons. Backend's final gate
+passed 5,301 tests with 20 skips, zero failures/errors and 82% rounded coverage
+across its fast and migrated database profiles. Web's gates include critical
+browser journeys; desktop, landing, product and platform checks also passed.
+The recorded platform implementation revision precedes this documentation-only
+handoff update. These checks establish the source baseline; release packaging and
+production acceptance remain deferred.
+
 The feature inventory is [refactor-2026-10-14.json](refactor-2026-10-14.json).
 Each accepted area keeps an explicit unresolved release disposition, configuration
 needs and acceptance gaps. Product requirement statuses were not promoted to Built.
@@ -15,8 +25,10 @@ Desktop's standalone Task Threads stack is retired under PDR-0031; its archive t
 preserves the code. Existing Tasks/handoffs/runs remain the shared backend foundation.
 
 Backend and web retain real development/production histories through consolidation
-merges. Refactors are separate PRs on that source. Every branch is preserved. [The branch inventory](branches-2026-10-14.json)
-records tips and ancestry without treating an unmerged tip as disposable.
+merges. Refactors are separate PRs on that source. Every branch is preserved.
+[The branch inventory](branches-2026-10-14.json) records tips and ancestry at the
+earlier review snapshot, before the final backend merges; it does not treat an
+unmerged tip as disposable.
 The five application/product repositories and local folders use their new names.
 
 ## Before the backend release
