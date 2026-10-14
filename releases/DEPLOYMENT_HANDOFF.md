@@ -47,8 +47,12 @@ The five application/product repositories and local folders use their new names.
 
 The canonical assembly is platform
 `environments/production/backend.compose.yml`. Backend retains its local rehearsal
-snapshot and app-specific SQL/bootstrap/migrations. The dispatcher must be pinned
-to the revision supporting the `platform:` compose selector before releasing it.
+snapshot and app-specific SQL/bootstrap/migrations. The current application entry points retain their previously verified platform
+pin and local rehearsal assembly for compatibility. To adopt platform assembly
+at release time, deliberately bump both backend workflow dispatcher pins to the
+reviewed platform main and set backend `.platform.yml` `deploy.compose_file` to
+`platform:environments/production/backend.compose.yml`. Both assembly copies
+currently carry the same commands and safety phases; review any later differences.
 
 ## Backup and infrastructure evidence
 
