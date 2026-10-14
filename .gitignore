@@ -8,3 +8,7 @@ node_modules/
 .terraform.lock.hcl
 tester-agent/dist/
 tester-agent/coverage/
+
+# Python validation scripts
+__pycache__/
+*.pyc
