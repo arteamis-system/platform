@@ -1,0 +1,110 @@
+{
+  "checked_at": "2026-10-14T13:07:06.614536+00:00",
+  "scope": "Source consolidation completed; deployment and production acceptance deferred by owner",
+  "production_changed": false,
+  "branches_deleted": false,
+  "evidence_basis": "Successful PR CI and identical merged source trees. Platform revision below precedes this documentation-only evidence commit.",
+  "repositories": {
+    "backend": {
+      "main_revision": "4fde91c63b1076e7af9abe6ff039df5709cb7c12",
+      "tested_candidate_revision": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
+      "tree": "c531f3ac3b2c4cd3d5eaaf9442121fe4c6b57bee",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/backend/pull/13",
+      "ci_run": "https://github.com/arteamis-system/backend/actions/runs/38553134612",
+      "ci_conclusion": "success",
+      "checks": [
+        "Ruff",
+        "security",
+        "fast and migrated database profiles",
+        "coverage"
+      ],
+      "test_results": {
+        "passed": 5301,
+        "skipped": 20,
+        "failed": 0,
+        "errors": 0,
+        "coverage_percent_rounded": 82
+      },
+      "consolidation_pull_request": "https://github.com/arteamis-system/backend/pull/12",
+      "consolidation_ci_run": "https://github.com/arteamis-system/backend/actions/runs/38552127644",
+      "retained_history": {
+        "dev": true,
+        "fix/personal-brain": true,
+        "deploy/prod": true
+      }
+    },
+    "web": {
+      "main_revision": "07a9572ca4239cc33cee5cbc42c15cf5acaa25d8",
+      "tested_candidate_revision": "34623794466dd36b12101c4a8e5e7d66be5145fe",
+      "tree": "c8f7c6c23087ade3a434463b88f36064dc6c4433",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/web/pull/8",
+      "ci_run": "https://github.com/arteamis-system/web/actions/runs/38552777093",
+      "ci_conclusion": "success",
+      "checks": [
+        "security",
+        "typecheck",
+        "build",
+        "unit tests and coverage",
+        "critical browser journeys"
+      ]
+    },
+    "desktop": {
+      "main_revision": "e82dab2858c9fefbdb7a3868da249ea4bbbf6a81",
+      "tested_candidate_revision": "a5fe2381a4359fcb2c8de809121226aa45b3225b",
+      "tree": "45cf5549067b1265a8a974614150d380f5fd0983",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/desktop/pull/4",
+      "ci_run": "https://github.com/arteamis-system/desktop/actions/runs/38556368978",
+      "ci_conclusion": "success",
+      "checks": [
+        "format",
+        "Rust lint and tests",
+        "macOS shell build and bridge checks"
+      ]
+    },
+    "landing": {
+      "main_revision": "3d64ed00061fb5511d3717458cb8ce3febdd1f2a",
+      "tested_candidate_revision": "668faa8a93ae2942f98dcd03c9ff2c184aa97784",
+      "tree": "2fbe530b6c8fd749fa54f98828be059125be28e0",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/landing/pull/1",
+      "ci_run": "https://github.com/arteamis-system/landing/actions/runs/38554479691",
+      "ci_conclusion": "success",
+      "checks": [
+        "security",
+        "markup, local assets and JSX",
+        "three stubbed browser signup journeys"
+      ]
+    },
+    "product": {
+      "main_revision": "c21f32eae40412abc3a0aac0af1417518cc1e6a6",
+      "tested_candidate_revision": "e5e5e362c4edc2d9fbfffae25effd0a9a9a52ee0",
+      "tree": "26201ea02ad815f6d8b0b37f5c493ba6fe933791",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/product/pull/2",
+      "ci_run": "https://github.com/arteamis-system/product/actions/runs/38552165220",
+      "ci_conclusion": "success",
+      "checks": [
+        "71 product documents checked"
+      ]
+    },
+    "platform": {
+      "main_revision": "98b7575865beb0b561324875e1fba30af1c78f77",
+      "tested_candidate_revision": "6a38387c6e1fc670118fb37069744b47c67393e1",
+      "tree": "a48bb7e31ddc3e3e9270fa131277ae301d8cc773",
+      "merged_tree_matches_tested_candidate": true,
+      "pull_request": "https://github.com/arteamis-system/platform/pull/12",
+      "ci_run": "https://github.com/arteamis-system/platform/actions/runs/38555582422",
+      "ci_conclusion": "success",
+      "checks": [
+        "workflow and action pins",
+        "shell and operations checks",
+        "manifest parser",
+        "tester agent",
+        "Terraform modules and environment roots"
+      ]
+    }
+  }
+}
