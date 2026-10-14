@@ -15,7 +15,8 @@ Desktop's standalone Task Threads stack is retired under PDR-0031; its archive t
 preserves the code. Existing Tasks/handoffs/runs remain the shared backend foundation.
 
 Backend and web retain real development/production histories through consolidation
-merges. Refactors are separate PRs on that source. Every branch is preserved.
+merges. Refactors are separate PRs on that source. Every branch is preserved. [The branch inventory](branches-2026-10-14.json)
+records tips and ancestry without treating an unmerged tip as disposable.
 The five application/product repositories and local folders use their new names.
 
 ## Before the backend release
