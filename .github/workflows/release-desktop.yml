@@ -2,8 +2,8 @@
 # builds from main.
 #
 # signing: internal-unsigned (the default until the team has an Apple Developer
-# account) builds the same universal dmg with an ad-hoc signature and publishes it
-# as a GitHub pre-release for internal use. macOS warns on first open; remote APNs
+# account) builds the same universal dmg with an ad-hoc signature and saves it
+# as a review artifact. `publish: true` also creates an internal GitHub pre-release. macOS warns on first open; remote APNs
 # stays disabled. It is not a release for customers.
 #
 # signing: developer-id signs and notarises. It expects these secrets on the `desktop-release` environment (create the
@@ -26,7 +26,7 @@ on:
         type: string
         default: production
       signing:
-        description: internal-unsigned publishes an ad-hoc-signed internal pre-release
+        description: internal-unsigned builds an ad-hoc-signed installer for review
         type: string
         default: internal-unsigned
 

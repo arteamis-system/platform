@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Check the normalized, secret-free production Compose release contract."""
+"""Check the production Compose release contract."""
 
-import json
+import yaml
 from pathlib import PurePath
 import sys
 
-stack = json.load(open(sys.argv[1]))
+stack = yaml.safe_load(open(sys.argv[1]))
 services = stack["services"]
 def env_files(service):
     return [PurePath(value["path"] if isinstance(value, dict) else value).name for value in service["env_file"]]
