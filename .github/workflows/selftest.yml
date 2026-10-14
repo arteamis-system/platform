@@ -34,7 +34,8 @@ jobs:
           cp environments/production/backend.compose.yml "$fixture_dir/compose.yml"
           touch "$fixture_dir/.env" "$fixture_dir/.env.infra"
           (cd "$fixture_dir" && docker compose --env-file /dev/null -f compose.yml config --no-env-resolution --no-path-resolution --format json) > /tmp/stack.json
-          python3 ops/check-compose.py /tmp/stack.json
+          python3 -m pip install --quiet PyYAML==6.0.3
+          python3 ops/check-compose.py environments/production/backend.compose.yml
           rm -rf "$fixture_dir"
 
       - name: actionlint
