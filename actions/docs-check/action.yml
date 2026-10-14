@@ -1,0 +1,10 @@
+name: Check documentation
+description: Check Markdown links, metadata, indexes and requirement/decision identifiers.
+runs:
+  using: composite
+  steps:
+    - name: Validate documentation
+      shell: bash
+      env:
+        DOCS_CHECKER: ${{ github.action_path }}/check_docs.py
+      run: python3 "$DOCS_CHECKER" "$GITHUB_WORKSPACE"
