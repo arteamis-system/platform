@@ -26,7 +26,12 @@ jobs:
         run: python3 scripts/check_internal_pins.py
 
       - name: Test documentation checks
-        run: python3 -m unittest discover -s actions/docs-check -p 'test_*.py'
+        run: |
+          python3 -m unittest discover -s actions/docs-check -p 'test_*.py'
+          python3 -m unittest discover -s ops -p 'test_*.py'
+          bash -n ops/restore-backup.sh
+          docker compose --env-file /dev/null -f environments/production/backend.compose.yml config --no-env-resolution --no-path-resolution --format json > /tmp/stack.json
+          python3 ops/check-compose.py /tmp/stack.json
 
       - name: actionlint
         run: |
@@ -34,7 +39,7 @@ jobs:
           ./actionlint -color -shellcheck=
 
       - name: shellcheck
-        run: shellcheck actions/*/*.sh
+        run: shellcheck actions/*/*.sh ops/*.sh
 
   manifest-parser:
     name: manifest parser
@@ -226,17 +231,20 @@ jobs:
           node policy/schemas/validate.mjs
 
   terraform:
-    name: terraform modules
+    name: terraform modules and environment roots
+    env:
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-provider-cache
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.14.0"
-      - run: terraform fmt -check -recursive modules/
+      - run: terraform fmt -check -recursive modules/ environments/
       - name: Validate each module
         run: |
-          for dir in modules/*/; do
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for dir in modules/*/ environments/*/; do
             echo "--- $dir"
             terraform -chdir="$dir" init -backend=false -input=false
             terraform -chdir="$dir" validate

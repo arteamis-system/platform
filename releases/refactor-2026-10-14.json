@@ -1,0 +1,148 @@
+{
+  "checked_at": "2026-10-14",
+  "scope": "Source consolidation on main; owner deferred deployment, provider setup and release acceptance to teammate",
+  "source_candidates": {
+    "backend": "5aca6019abb3e221288c5caaeb24e68b44ef00f1",
+    "web": "34623794466dd36b12101c4a8e5e7d66be5145fe",
+    "desktop": "23d55245f197a191403a377bcd3a22d6ac9573f3",
+    "landing": "e04ce30665b8a2789845969719bf14344fedd35d",
+    "product": "c21f32eae40412abc3a0aac0af1417518cc1e6a6"
+  },
+  "features": [
+    {
+      "id": "brain-v2-ask",
+      "name": "Brain v2 Ask",
+      "source": "backend/app/brain_chat; web Ask screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "LLM routing and existing provider credentials"
+      ],
+      "acceptance_remaining": [
+        "Citations, conversation memory and confirmation boundaries against the released backend"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "rules-v2",
+      "name": "Rules, evidence and ownership",
+      "source": "backend/app/rules; backend/app/ownership; web Rules screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Finalized non-owner RLS helpers",
+        "Working job scheduler"
+      ],
+      "acceptance_remaining": [
+        "Rule review, source loss, departure and due notices"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "docs-lifecycle",
+      "name": "Docs and immutable revisions",
+      "source": "backend/app/sources; web Docs screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Migrations and indexing worker configuration"
+      ],
+      "acceptance_remaining": [
+        "Duplicate handling, revision lineage and indexing state"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "document-conflicts",
+      "name": "Document conflicts",
+      "source": "backend/app/doc_conflicts; web conflict screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Explicit DOC_CONFLICTS_MODE activation"
+      ],
+      "acceptance_remaining": [
+        "Passage decisions, escalation and retrieval exclusions"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "rich-chat",
+      "name": "Private conversations and rich chat",
+      "source": "backend/app/chat; web channels",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Migrations and shared-backend release"
+      ],
+      "acceptance_remaining": [
+        "Participant-only access, reply threads, edits, attachments, mentions and SSE"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "governed-agents",
+      "name": "Agents and governed work from chat",
+      "source": "backend/app/agents; backend/app/chat; web agent/action screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Per-runtime authenticated setup",
+        "Owner runner configuration"
+      ],
+      "acceptance_remaining": [
+        "Six runtime choices retain their actual setup/conformance state",
+        "Codex refusal conformance and Claude login remain incomplete in dated evidence"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "groups-broadcasts",
+      "name": "People groups and leader broadcasts",
+      "source": "backend group/broadcast APIs; web chat screens",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "Shared-backend and web release"
+      ],
+      "acceptance_remaining": [
+        "Access integration and bounded human-only broadcasts"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    },
+    {
+      "id": "notifications",
+      "name": "Browser and native notification additions",
+      "source": "backend/app/notifications; web NotificationBridge; desktop native bridge",
+      "disposition": "blocked",
+      "release_deferred_by_owner": true,
+      "configuration_required": [
+        "VAPID keys and allowed endpoint configuration",
+        "Unsigned internal desktop packaging",
+        "APNs remains disabled"
+      ],
+      "acceptance_remaining": [
+        "Browser account/workspace switches and revocation",
+        "Independent installed-shell delivery/click acceptance"
+      ],
+      "deployed_artifact": null,
+      "production_verified_at": null
+    }
+  ],
+  "retired": [
+    {
+      "name": "Standalone Plane backend",
+      "disposition": "removed",
+      "decision": "product/decisions/0031-one-product-backend-for-every-client.md",
+      "archive_tag": "desktop:archive/plane-backend-final",
+      "note": "Source removed; no data migration or volume destruction"
+    }
+  ]
+}
