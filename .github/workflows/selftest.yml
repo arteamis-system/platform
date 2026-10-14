@@ -19,6 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # validate pinned action paths in historical commits
+
+      - name: Verify internal workflow and action pins
+        run: python3 scripts/check_internal_pins.py
+
+      - name: Test documentation checks
+        run: python3 -m unittest discover -s actions/docs-check -p 'test_*.py'
 
       - name: actionlint
         run: |
