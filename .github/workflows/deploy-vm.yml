@@ -33,6 +33,7 @@ on:
       services:        { type: string, required: false, default: "" }
       migration_phase: { type: string, required: false, default: "" }
       ship:            { type: string, required: false, default: "" }
+      preflight:       { type: string, required: false, default: "" }
       verify_signature:
         description: Refuse to deploy an image that cosign cannot verify.
         type: boolean
@@ -260,6 +261,24 @@ jobs:
           docker image inspect "$IMAGE_REF" >/dev/null
           echo "Image pull preflight passed."
           REMOTE
+
+      # The component's own precondition, checked while the VM is still untouched:
+      # for example, that its database is in the shape this release expects.
+      - name: Component preflight on the VM
+        if: ${{ inputs.preflight != '' }}
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          PREFLIGHT: ${{ inputs.preflight }}
+        run: |
+          set -euo pipefail
+          if ! ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
+               "cd '${{ inputs.remote_path }}' && bash -euo pipefail -c $(printf '%q' "$PREFLIGHT")"; then
+            echo "::error::The component preflight failed; nothing on the VM was changed."
+            exit 1
+          fi
+          echo "Component preflight passed."
 
       - name: Ship the compose file
         env:

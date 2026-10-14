@@ -44,6 +44,7 @@ outputs:
   services:        { description: Long-running compose services to roll,  value: "${{ steps.parse.outputs.services }}" }
   migration_phase: { description: Phase after which no automatic rollback, value: "${{ steps.parse.outputs.migration_phase }}" }
   ship:            { description: Extra paths shipped beside the compose file, value: "${{ steps.parse.outputs.ship }}" }
+  preflight:       { description: VM command that must pass before the release changes anything, value: "${{ steps.parse.outputs.preflight }}" }
   mirror_repo:     { description: owner/repo a mirror deploy pushes to,    value: "${{ steps.parse.outputs.mirror_repo }}" }
   mirror_user:     { description: Account that owns the mirror push token, value: "${{ steps.parse.outputs.mirror_user }}" }
   mirror_branch:   { description: Mirror branch for the resolved environment, value: "${{ steps.parse.outputs.mirror_branch }}" }

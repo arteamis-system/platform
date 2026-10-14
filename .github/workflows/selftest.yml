@@ -108,6 +108,7 @@ jobs:
             services: [backend, worker]
             migration_phase: db-migrate
             ship: [infra]
+            preflight: test -f .env.infra
             environments:
               production: { branch: main, trigger: dispatch, url: https://api.example.test }
           YML
@@ -131,6 +132,7 @@ jobs:
           grep -qx 'services=backend worker' /tmp/release.env
           grep -qx 'migration_phase=db-migrate' /tmp/release.env
           grep -qx 'ship=infra' /tmp/release.env
+          grep -qx 'preflight=test -f .env.infra' /tmp/release.env
 
           export GITHUB_OUTPUT=/tmp/wrong-ref.env
           if run workflow_dispatch feature/x production; then
