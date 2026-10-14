@@ -1,0 +1,241 @@
+# Packages the macOS app. Manual only: there is no automatic trigger, and it only
+# builds from main.
+#
+# signing: internal-unsigned (the default until the team has an Apple Developer
+# account) builds the same universal dmg with an ad-hoc signature and publishes it
+# as a GitHub pre-release for internal use. macOS warns on first open; remote APNs
+# stays disabled. It is not a release for customers.
+#
+# signing: developer-id signs and notarises. It expects these secrets on the `desktop-release` environment (create the
+# environment with required reviewers so a release needs a second person):
+#   APPLE_CERTIFICATE           base64 of the Developer ID Application .p12
+#   APPLE_CERTIFICATE_PASSWORD  password of that .p12
+#   APPLE_SIGNING_IDENTITY      e.g. "Developer ID Application: Name (TEAMID)"
+#   APPLE_TEAM_ID               the team id in that identity
+#   APPLE_API_ISSUER            App Store Connect API issuer id
+#   APPLE_API_KEY               App Store Connect API key id
+#   APPLE_API_KEY_CONTENT       contents of the AuthKey_<id>.p8 private key
+# The workflow writes the key to a temporary file and sets APPLE_API_KEY_PATH.
+name: desktop release
+
+on:
+  workflow_call:
+    inputs:
+      origin:
+        description: Which Arteamis website the app opens
+        type: string
+        default: production
+      signing:
+        description: internal-unsigned publishes an ad-hoc-signed internal pre-release
+        type: string
+        default: internal-unsigned
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+env:
+  PNPM_VERSION: "11.17.0"
+  ARTEAMIS_APP_ORIGIN: ${{ inputs.origin == 'production' && 'https://app.arteamis.space' || 'https://app.staging.arteamis.space' }}
+
+jobs:
+  internal:
+    name: Package an internal (ad-hoc signed) pre-release
+    if: github.ref == 'refs/heads/main' && inputs.signing == 'internal-unsigned'
+    runs-on: macos-15
+    timeout-minutes: 60
+    permissions:
+      contents: write # the pre-release and its tag
+    steps:
+      - name: Refuse a non-https origin
+        run: |
+          case "$ARTEAMIS_APP_ORIGIN" in
+            https://*) ;;
+            *) echo "::error::A packaged app must open an https origin, got $ARTEAMIS_APP_ORIGIN"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install --global "pnpm@$PNPM_VERSION"
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust (stable, both Mac targets)
+        run: |
+          rustup toolchain install stable --profile minimal \
+            --target aarch64-apple-darwin --target x86_64-apple-darwin
+          rustup default stable
+
+      # "-" is an ad-hoc signature: the bundle is sealed and runs, but it carries
+      # no Developer ID, so Gatekeeper asks on first open.
+      - name: Build the universal dmg (ad-hoc signed)
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: pnpm tauri build --bundles dmg --target universal-apple-darwin
+
+      - name: Verify the bundle
+        run: |
+          app="src-tauri/target/universal-apple-darwin/release/bundle/macos/Arteamis.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" = space.arteamis.desktop
+          lipo -archs "$app/Contents/MacOS/"* | grep -q arm64
+          lipo -archs "$app/Contents/MacOS/"* | grep -q x86_64
+
+      - name: Publish the internal pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGIN_NAME: ${{ inputs.origin }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          tag="desktop-v${version}-internal.${GITHUB_RUN_NUMBER}"
+          dir=src-tauri/target/universal-apple-darwin/release/bundle/dmg
+          dmg=$(ls "$dir"/*.dmg)
+          renamed="$dir/Arteamis-${version}-internal.${GITHUB_RUN_NUMBER}-${ORIGIN_NAME}.dmg"
+          mv "$dmg" "$renamed"
+          (cd "$dir" && shasum -a 256 "$(basename "$renamed")" > "$(basename "$renamed").sha256")
+          {
+            echo "Internal build for the team. **Not signed with a Developer ID and not notarised.**"
+            echo
+            echo "- Opens: \`$ARTEAMIS_APP_ORIGIN\`"
+            echo "- Source: \`$GITHUB_SHA\` on main"
+            echo "- Install: open the dmg, drag Arteamis to Applications, then right-click Arteamis and choose **Open** the first time (or run \`xattr -dr com.apple.quarantine /Applications/Arteamis.app\`)."
+            echo "- Remote push (APNs) is disabled in this build; notifications work while the app is running."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" "$renamed" "$renamed.sha256" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Arteamis desktop $version (internal ${GITHUB_RUN_NUMBER}, ${ORIGIN_NAME})" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Sign, notarise and package
+    if: github.ref == 'refs/heads/main' && inputs.signing == 'developer-id'
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: desktop-release
+    steps:
+      # First, so a missing secret fails in seconds and names what to add.
+      - name: Check the release secrets
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          missing=""
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_TEAM_ID APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_CONTENT; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Release secrets are missing::Add these to the desktop-release environment:$missing. See the comment at the top of .github/workflows/desktop-release.yml."
+            exit 1
+          fi
+          case "$APPLE_SIGNING_IDENTITY" in
+            "Developer ID Application: "*"($APPLE_TEAM_ID)") ;;
+            *)
+              echo "::error title=Signing identity does not match the team::APPLE_SIGNING_IDENTITY must be a Developer ID Application identity ending in ($APPLE_TEAM_ID)."
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install --global "pnpm@$PNPM_VERSION"
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust (stable, both Mac targets)
+        run: |
+          rustup toolchain install stable --profile minimal \
+            --target aarch64-apple-darwin --target x86_64-apple-darwin
+          rustup default stable
+
+      # A throwaway keychain, so the certificate never touches the login one.
+      - name: Import the signing certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password="$(uuidgen)"
+          echo "::add-mask::$password"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -f pkcs12 -k "$keychain" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
+          existing="$(security list-keychains -d user | tr -d '"')"
+          # shellcheck disable=SC2086
+          security list-keychains -d user -s "$keychain" $existing
+          echo "KEYCHAIN_PATH=$keychain" >> "$GITHUB_ENV"
+
+      - name: Write the notarisation key
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          umask 077
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: Release preflight
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: pnpm preflight:macos-release
+
+      # build:dmg:release runs the preflight again, builds a universal dmg,
+      # and Tauri signs and notarises it from the variables below.
+      - name: Build, sign and notarise the universal dmg
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: pnpm build:dmg:release
+
+      - name: Verify the signed app
+        run: |
+          app="src-tauri/target/universal-apple-darwin/release/bundle/macos/Arteamis.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          xcrun stapler validate "$app"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: arteamis-${{ inputs.origin }}-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove the keychain and the key
+        if: always()
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then security delete-keychain "$KEYCHAIN_PATH" || true; fi
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/certificate.p12"

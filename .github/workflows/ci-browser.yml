@@ -1,0 +1,34 @@
+name: browser checks
+on:
+  workflow_call:
+    inputs:
+      command:
+        type: string
+        required: false
+        default: npm test
+permissions:
+  contents: read
+jobs:
+  browser:
+    name: Browser journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run browser checks
+        run: ${{ inputs.command }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: browser-failures
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
