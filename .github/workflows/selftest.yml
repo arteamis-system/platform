@@ -14,6 +14,25 @@ permissions:
   contents: read
 
 jobs:
+  selftest:
+    name: selftest
+    needs: [lint, manifest-parser, tester-agent, terraform]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every selftest job to pass
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          results = json.loads(os.environ['JOB_RESULTS'])
+          failed = [name for name, job in results.items() if job['result'] != 'success']
+          if failed:
+              raise SystemExit('Selftests did not pass: ' + ', '.join(failed))
+          PY
+
   lint:
     name: workflows & shell
     runs-on: ubuntu-latest
