@@ -1,0 +1,14 @@
+{
+  "name": "arteamis-git-ui",
+  "private": true,
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=23"
+  },
+  "scripts": {
+    "start": "node start.mjs",
+    "test": "node --test repositories.test.mjs"
+  },
+  "dependencies": {
+    "ungit": "1.5.30"
+  }
+}

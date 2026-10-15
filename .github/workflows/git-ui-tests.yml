@@ -1,0 +1,32 @@
+name: Local Git browser
+
+on:
+  pull_request:
+    paths:
+      - dev-tools/git-ui/**
+      - git-ui.sh
+      - .github/workflows/git-ui-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - dev-tools/git-ui/**
+      - git-ui.sh
+      - .github/workflows/git-ui-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: bash -n git-ui.sh
+      - run: npm ci --prefix dev-tools/git-ui --no-audit --no-fund
+      - run: node --test dev-tools/git-ui/*.test.mjs
+      - run: python3 dev-tools/git-ui/test-image-previews.py
+      - run: node dev-tools/git-ui/start.mjs --repo . --list
