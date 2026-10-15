@@ -406,16 +406,23 @@ jobs:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
           VM_PORT: ${{ secrets.VM_PORT || '22' }}
+          REMOTE_PATH: ${{ inputs.remote_path }}
+          SERVICE: ${{ inputs.service }}
+          CONTAINER: ${{ inputs.container_name }}
+          IMAGE_REF: ${{ inputs.image_ref }}
+          PHASES: ${{ inputs.phases }}
+          SERVICES: ${{ inputs.services || inputs.service }}
+          MIGRATION_PHASE: ${{ inputs.migration_phase }}
         run: |
+          # ssh joins its arguments into one remote shell command. Quote each
+          # assignment for that shell, or a phase list executes db-backup as a
+          # command before the deployment script can even start.
+          printf -v remote_command '%q ' env \
+            "REMOTE_PATH=$REMOTE_PATH" "SERVICE=$SERVICE" "CONTAINER=$CONTAINER" \
+            "IMAGE_REF=$IMAGE_REF" "PHASES=$PHASES" "SERVICES=$SERVICES" \
+            "MIGRATION_PHASE=$MIGRATION_PHASE" bash -se
           ssh -i ~/.ssh/deploy_key -p "$VM_PORT" "$VM_USER@$VM_HOST" \
-            REMOTE_PATH='${{ inputs.remote_path }}' \
-            SERVICE='${{ inputs.service }}' \
-            CONTAINER='${{ inputs.container_name }}' \
-            IMAGE_REF='${{ inputs.image_ref }}' \
-            PHASES='${{ inputs.phases }}' \
-            SERVICES='${{ inputs.services || inputs.service }}' \
-            MIGRATION_PHASE='${{ inputs.migration_phase }}' \
-            bash -se <<'REMOTE'
+            "$remote_command" <<'REMOTE'
           set -euo pipefail
           cd "$REMOTE_PATH"
 
