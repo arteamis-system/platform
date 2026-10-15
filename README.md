@@ -15,6 +15,11 @@
 
 The one place deployment logic exists for every repository in this organisation.
 
+For local commit graphs, branches and diffs across cloned repositories, run
+`./git-ui.sh` from this checkout and open http://127.0.0.1:8449.
+The [Git browser guide](dev-tools/git-ui/README.md) covers first-time setup,
+repository discovery and selecting checkouts on other devices.
+
 An application repo carries a **manifest** describing what it is and a **stub
 workflow** that calls this repo. It carries no pipeline logic of its own. Change
 how backends deploy, and you change one file here — not one file per repo.

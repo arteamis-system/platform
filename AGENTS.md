@@ -36,6 +36,7 @@ Work from `main`, read the workspace guide, and preserve local commits. Use a to
 
 ## Other folders
 
+- `dev-tools/git-ui/`: portable Ungit launcher for local commit graphs and diffs. Run `./git-ui.sh`, verify HTTP health, then provide http://127.0.0.1:8449. It discovers Git checkouts beside platform; `--root` and repeated `--repo` select other layouts. Follow `dev-tools/git-ui/README.md` for requirements and checks.
 - Client/document workflows: `ci-desktop.yml`, `release-desktop.yml`, `ci-browser.yml` and `docs-check.yml`. Application repositories keep pinned entry points. Desktop release remains manual, on main, and defaults to an unsigned internal pre-release.
 - `actions/`: composite actions: `load-manifest`, `setup-runtime`, `coverage-gate`, `ai-review`, `inject-secrets`, `cloud-oidc-login`, `report-findings` (Node).
 - `modules/`: Terraform.
