@@ -88,7 +88,9 @@ jobs:
       - name: Build the universal dmg (ad-hoc signed)
         env:
           APPLE_SIGNING_IDENTITY: "-"
-        run: pnpm tauri build --bundles dmg --target universal-apple-darwin
+        # Request both outputs: a dmg-only build deletes the intermediate app
+        # before the signature and architecture checks below can inspect it.
+        run: pnpm tauri build --bundles app,dmg --target universal-apple-darwin
 
       - name: Verify the bundle
         run: |
