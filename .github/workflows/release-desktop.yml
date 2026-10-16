@@ -88,15 +88,18 @@ jobs:
       - name: Build the universal dmg (ad-hoc signed)
         env:
           APPLE_SIGNING_IDENTITY: "-"
-        run: pnpm tauri build --bundles dmg --target universal-apple-darwin
+        # Request both outputs: a dmg-only build deletes the intermediate app
+        # before the signature and architecture checks below can inspect it.
+        run: pnpm tauri build --bundles app,dmg --target universal-apple-darwin
 
       - name: Verify the bundle
         run: |
           app="src-tauri/target/universal-apple-darwin/release/bundle/macos/Arteamis.app"
           codesign --verify --deep --strict --verbose=2 "$app"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" = space.arteamis.desktop
-          lipo -archs "$app/Contents/MacOS/"* | grep -q arm64
-          lipo -archs "$app/Contents/MacOS/"* | grep -q x86_64
+          for binary in "$app/Contents/MacOS/"*; do
+            lipo "$binary" -verify_arch arm64 x86_64
+          done
 
       - name: Save the internal installer for review
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
