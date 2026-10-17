@@ -69,7 +69,7 @@ def apply_stack(profile, name, template, execute=False):
         if error.code != "ValidationError" or not error.missing_stack:
             raise
         kind = "CREATE"
-    change = "review-" + str(int(time.time()))
+    change = "arteamis-ci-review-" + str(int(time.time()))
     aws(profile, "cloudformation", "create-change-set", "--stack-name", name,
         "--change-set-name", change, "--change-set-type", kind, "--template-body", "file://" + str(path),
         "--capabilities", "CAPABILITY_NAMED_IAM", "--tags", "Key=ArteamisCiPool,Value=arteamis-ci")
