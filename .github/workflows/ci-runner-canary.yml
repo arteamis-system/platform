@@ -161,4 +161,4 @@ jobs:
             *) echo 'Repository is not approved for application qualification'; exit 1 ;;
           esac
       - if: ${{ github.repository == 'arteamis-system/product' }}
-        uses: arteamis-system/platform/actions/docs-check@030e508ddb624b530351ea41ac5162203367f13b
+        uses: arteamis-system/platform/actions/docs-check@91ce65884dd0d01ac2668dc83b1d66586c64fd3d

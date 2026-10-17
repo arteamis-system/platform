@@ -8,7 +8,7 @@
   "live_canary_verified": false,
   "hosted_recovery_verified": false,
   "validation": {
-    "controller_tests": 69,
+    "controller_tests": 70,
     "actionlint": true,
     "cfn_lint": true,
     "shellcheck": true,
@@ -25,5 +25,13 @@
     "macOS stays hosted",
     "Public platform stays hosted; private callers use their own routing",
     "Administration/configuration helper workflows excluded from automatic admission"
-  ]
+  ],
+  "source_integration": {
+    "component_pr": "https://github.com/arteamis-system/platform/pull/17",
+    "validated_component_commit": "91ce65884dd0d01ac2668dc83b1d66586c64fd3d",
+    "component_checks": "https://github.com/arteamis-system/platform/actions/runs/39019526841",
+    "native_lambda_check": "https://github.com/arteamis-system/platform/actions/runs/39019526782",
+    "status": "Code-owner approval required; no bypass attempted",
+    "merge_strategy": "Merge commits preserve reviewed immutable component/assembly pins as main ancestors"
+  }
 }

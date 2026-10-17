@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import controller
 import provision
 import stack
+import setup_policy
 from test_controller import MemoryState, failed_job, billing_annotations
 
 
@@ -140,6 +141,15 @@ class QualificationTests(unittest.TestCase):
                 with self.assertRaises(ValueError): provision.validate_evidence(changed, 'ami-reviewed')
             with self.assertRaises(ValueError): provision.validate_evidence(proof, 'ami-other')
             with self.assertRaises(ValueError): provision.validate_evidence({**proof, 'source_commit': 'b'*40}, 'ami-reviewed')
+
+    def test_operator_cannot_write_administrator_stacks_or_generic_change_sets(self):
+        writes = [s for s in setup_policy.setup_policy()['Statement']
+                  if isinstance(s['Action'], list) and 'cloudformation:CreateChangeSet' in s['Action']]
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(set(writes[0]['Resource']), {
+            f'arn:aws:cloudformation:{stack.REGION}:{stack.ACCOUNT}:stack/arteamis-ci-foundation/*',
+            f'arn:aws:cloudformation:{stack.REGION}:{stack.ACCOUNT}:stack/arteamis-ci-runtime/*',
+            f'arn:aws:cloudformation:{stack.REGION}:{stack.ACCOUNT}:changeSet/arteamis-ci-review-*/*'})
 
     def test_reaper_stays_scheduled_and_has_no_app_access(self):
         runtime = stack.runtime('ami-test', 'controller/test.zip', {'SubnetId':'s','SecurityGroupId':'sg',

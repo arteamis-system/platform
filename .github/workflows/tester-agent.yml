@@ -116,7 +116,7 @@ jobs:
 
       - name: Route findings to Issues and Lark
         if: ${{ always() && hashFiles('.tester/report.json') != '' }}
-        uses: arteamis-system/platform/actions/report-findings@51d6ba7ea6d4f56b54c3d37522034f2f1ed98117
+        uses: arteamis-system/platform/actions/report-findings@91ce65884dd0d01ac2668dc83b1d66586c64fd3d
         with:
           report: .tester/report.json
           component: ${{ inputs.component }}
