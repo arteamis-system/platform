@@ -10,6 +10,7 @@ PROBE = """name: GitHub hosted availability
 run-name: Arteamis hosted probe ${{ inputs.nonce }}
 
 on:
+  #checkov:skip=CKV_GHA_7:Correlation nonce only; this probe cannot build or release.
   workflow_dispatch:
     inputs:
       nonce:
