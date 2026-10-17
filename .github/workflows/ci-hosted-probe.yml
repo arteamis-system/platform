@@ -1,0 +1,19 @@
+name: GitHub hosted availability
+run-name: Arteamis hosted probe ${{ inputs.nonce }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      nonce:
+        description: Controller correlation identifier
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  available:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - run: echo 'GitHub-hosted runner available'

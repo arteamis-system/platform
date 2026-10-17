@@ -28,7 +28,8 @@ permissions:
 jobs:
   plan:
     name: plan (${{ inputs.working_directory }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: ${{ inputs.working_directory }}
@@ -114,7 +115,8 @@ jobs:
     name: apply (${{ inputs.working_directory }})
     needs: plan
     if: ${{ inputs.apply }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
+    timeout-minutes: 45
     environment: ${{ inputs.environment }} # approval gate lives here
     defaults:
       run:
