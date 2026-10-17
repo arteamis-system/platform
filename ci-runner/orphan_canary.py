@@ -16,6 +16,9 @@ def launch(profile, template, version):
         raise ValueError('Preserve and reconcile the previous orphan request before another launch')
     if provision.invoke(profile, 'disable').get('disabled') is not True:
         raise RuntimeError('Controller disable was not confirmed')
+    capacity = provision.invoke(profile, 'status')
+    if any(row.get('phase') or row.get('name') for row in capacity['slots']):
+        raise ValueError('Reconcile every reserved slot before an orphan canary')
     result = provision.aws(profile, 'ec2', 'describe-instances', '--filters',
         'Name=tag:ArteamisCiPool,Values=arteamis-ci',
         'Name=instance-state-name,Values=pending,running,stopping,stopped,shutting-down')
