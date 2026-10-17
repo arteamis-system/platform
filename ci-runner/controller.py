@@ -359,6 +359,17 @@ class Controller:
         if not billing_only(jobs, annotations):
             self.state.put(rejected_key, {"sha": run["head_sha"], "reason": "not-billing"})
             return False
+        successful = [job for job in jobs if job.get("conclusion") == "success"]
+        if successful:
+            # GitHub also reruns dependents of failed jobs. Never replay a
+            # previously successful always()/summary job. A release's known
+            # manifest/build stages are upstream of its failed deploy stage.
+            upstream_release = (run.get("event") == "workflow_dispatch"
+                and run.get("path") == ".github/workflows/release.yml"
+                and all(job.get("name") == "read manifest" or re.match(r"build(?:$| / )", job.get("name", ""))
+                        for job in successful))
+            if not upstream_release:
+                return False
         current = self.gh.variable(repo)
         mode_key = "mode:" + repo
         mode = self.state.get(mode_key)

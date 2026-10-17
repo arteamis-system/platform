@@ -62,6 +62,15 @@ class AdmissionTests(unittest.TestCase):
         self.gh.call.assert_not_called()
         self.gh.set_variable.assert_not_called()
 
+    def test_successful_ci_dependents_cannot_be_replayed(self):
+        self.ctrl.trusted = Mock(return_value=True)
+        self.ctrl.source_compatible = Mock(return_value=True)
+        jobs = [failed_job(check_run_url=f'https://api.github.com/repos/{self.repo}/check-runs/8'),
+                {'id': 9, 'name': 'summary', 'conclusion': 'success', 'runner_id': 2}]
+        self.gh.pages.side_effect = lambda repo, path, *args: billing_annotations()[7] if 'annotations' in path else jobs
+        self.assertFalse(self.ctrl.takeover(self.repo, {**self.run, 'event': 'push', 'path': '.github/workflows/ci.yml'}))
+        self.gh.call.assert_not_called()
+
     def test_missing_historical_names_fail_closed(self):
         self.assertFalse(controller.release_unstarted([]))
         self.assertFalse(controller.release_unstarted([{'runner_id': 1}]))

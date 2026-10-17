@@ -8,7 +8,7 @@
   "live_canary_verified": false,
   "hosted_recovery_verified": false,
   "validation": {
-    "controller_tests": 68,
+    "controller_tests": 69,
     "actionlint": true,
     "cfn_lint": true,
     "shellcheck": true,
