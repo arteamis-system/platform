@@ -1,0 +1,2 @@
+-r requirements.txt
+cfn-lint==1.57.1

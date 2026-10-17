@@ -1,0 +1,29 @@
+{
+  "prepared": "2026-10-17",
+  "reference_source": "Gol-Network/infra@efab42413290a129bfbf0cb5979e79c33427b81b",
+  "authority": "Mechanisms and regression tests only; no credentials, resource identities or live acceptance transferred",
+  "aws_deployed": false,
+  "app_installed": false,
+  "routing_activated": false,
+  "live_canary_verified": false,
+  "hosted_recovery_verified": false,
+  "validation": {
+    "controller_tests": 68,
+    "actionlint": true,
+    "cfn_lint": true,
+    "shellcheck": true,
+    "manifest_parser_cases": 5,
+    "docs_checker_tests": 8,
+    "ops_tests": 3,
+    "findings_tests": 14,
+    "tester_agent_tests": 58,
+    "terraform_modules_and_roots": 10
+  },
+  "limitations": [
+    "AWS access and App setup deferred",
+    "Live AMI/runtime/canary/takeover/hosted recovery require qualification",
+    "macOS stays hosted",
+    "Public platform stays hosted; private callers use their own routing",
+    "Administration/configuration helper workflows excluded from automatic admission"
+  ]
+}

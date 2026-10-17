@@ -1,0 +1,33 @@
+name: CI runner checks
+on:
+  push:
+    branches: [main]
+    paths: ['ci-runner/**', '.github/workflows/**']
+  pull_request:
+    paths: ['ci-runner/**', '.github/workflows/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r ci-runner/requirements-dev.txt
+      - run: python -m unittest discover -s ci-runner -p 'test_*.py'
+      - run: python ci-runner/stack.py && python ci-runner/setup_policy.py && python ci-runner/alerts.py
+      - run: cfn-lint --region ap-southeast-1 --template ci-runner/generated/foundation.json ci-runner/generated/runtime-preview.json ci-runner/generated/admin-bootstrap.json ci-runner/generated/admin-alerts.json
+      - run: bash -n ci-runner/bake.sh && shellcheck ci-runner/bake.sh
+      - name: Package and import the exact Linux Lambda dependencies
+        run: |
+          python ci-runner/provision.py package
+          docker run --rm --entrypoint python \
+            -v "$PWD/ci-runner/.build/package:/var/task:ro" \
+            public.ecr.aws/lambda/python:3.12@sha256:3856536f53e945debf4c90d0ff301cbaa837c07a4ab9b0e2c102c6e54ceb9762 \
+            -c 'import controller,pool,reaper,yaml; from cryptography.hazmat.primitives.asymmetric import rsa,padding; from cryptography.hazmat.primitives import hashes; key=rsa.generate_private_key(public_exponent=65537,key_size=2048); signature=key.sign(b"arteamis",padding.PKCS1v15(),hashes.SHA256()); key.public_key().verify(signature,b"arteamis",padding.PKCS1v15(),hashes.SHA256()); print("Lambda imports and RSA verification passed")'

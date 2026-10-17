@@ -1,0 +1,655 @@
+{
+  "retrieved": "2026-10-17",
+  "region": "ap-southeast-1",
+  "currency": "USD",
+  "services": {
+    "AmazonEC2": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "5JKF9WXGUTYXYKXH",
+          "usageType": "APS1-EBS:SnapshotUsage",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0500000000",
+          "PriceDescription": "$0.05 per GB-Month of snapshot data stored - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "5K2GJB2EKDNJYQW5",
+          "usageType": "APS1-APN2-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to Asia Pacific (Seoul)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "63JFF27P9JH449SJ",
+          "usageType": "APS1-APS2-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to Asia Pacific (Sydney)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "822PZ4YJWTNA96CQ",
+          "usageType": "APS1-BoxUsage:m6i.large",
+          "Unit": "Hrs",
+          "PricePerUnit": "0.1200000000",
+          "PriceDescription": "$0.12 per On Demand Linux m6i.large Instance Hour",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "9FXKFB7YYGNJRZK4",
+          "usageType": "APS1-USW1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to US West (Northern California)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "B7YZFMFKVS4K6XRH",
+          "usageType": "APS1-EU-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to EU (Ireland)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "BQUBA6VX94AJF72C",
+          "usageType": "EU-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per GB - EU (Ireland) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "BUVFQR7U2AA7AD4H",
+          "usageType": "APS1-SAE1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to South America (Sao Paulo)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "DSDTG4WGDHQXQJFJ",
+          "usageType": "USW1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per GB - US West (Northern California) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "DWGAXN3Q6H7Z5VWZ",
+          "usageType": "EUC1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per GB - EU (Germany) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "G2ECFFVXQSR89M99",
+          "usageType": "USE1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per GB - US East (Northern Virginia) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "JG78H6GX5GCM8AA3",
+          "usageType": "SAE1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.1600000000",
+          "PriceDescription": "$0.16 per GB - South America (Sao Paulo) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "JW9NBK5WWARH34TK",
+          "usageType": "UGW1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0300000000",
+          "PriceDescription": "$0.03 per GB - AWS GovCloud (US) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "PYE2B8ESXJE6HVAB",
+          "usageType": "APS1-EUC1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to EU (Germany)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "Q4NQCQ894KCKJNZP",
+          "usageType": "APN2-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Seoul) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "SCDHAFJ85X8VN2DT",
+          "usageType": "APS1-USW2-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to US West (Oregon)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "V7RRA955QW4YPZ5G",
+          "usageType": "APS1-APN1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to Asia Pacific (Tokyo)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "VW8Q9GK8FPNU8XCZ",
+          "usageType": "APS2-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.1400000000",
+          "PriceDescription": "$0.14 per GB - Asia Pacific (Sydney) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "WCZGDGA66QYJUMT9",
+          "usageType": "APS1-UGW1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to AWS GovCloud (US)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "WW3ZJQMWZXAVGFZV",
+          "usageType": "APS1-USE1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Singapore) data transfer to US East (Northern Virginia)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "X8SY8CJFS8WV7VQN",
+          "usageType": "APS1-EBS:VolumeUsage.gp3",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0960000000",
+          "PriceDescription": "$0.096 per GB-month of General Purpose (gp3) provisioned storage - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "Y4UZBKYFKSJJGGRQ",
+          "usageType": "USW2-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per GB - US West (Oregon) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "YYBWSEHPB45DXTS7",
+          "usageType": "APN1-APS1-AWS-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0900000000",
+          "PriceDescription": "$0.09 per GB - Asia Pacific (Tokyo) data transfer to Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AWSLambda": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "36D3E7396ZKUSWWW",
+          "usageType": "APS1-Request",
+          "Unit": "Request",
+          "PricePerUnit": "0.0000002000",
+          "PriceDescription": "AWS Lambda - Total Requests - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "67ZV6RMYY72YSRDC",
+          "usageType": "APS1-Lambda-GB-Second",
+          "Unit": "Lambda-GB-Second",
+          "PricePerUnit": "0.0000166667",
+          "PriceDescription": "AWS Lambda - Total Compute - Asia Pacific (Singapore)-Tier-1",
+          "StartingRange": "0",
+          "EndingRange": "6000000000"
+        },
+        {
+          "SKU": "67ZV6RMYY72YSRDC",
+          "usageType": "APS1-Lambda-GB-Second",
+          "Unit": "Lambda-GB-Second",
+          "PricePerUnit": "0.0000150000",
+          "PriceDescription": "AWS Lambda - Total Compute - Asia Pacific (Singapore)-Tier-2",
+          "StartingRange": "6000000000",
+          "EndingRange": "15000000000"
+        },
+        {
+          "SKU": "67ZV6RMYY72YSRDC",
+          "usageType": "APS1-Lambda-GB-Second",
+          "Unit": "Lambda-GB-Second",
+          "PricePerUnit": "0.0000133334",
+          "PriceDescription": "AWS Lambda - Total Compute - Asia Pacific (Singapore)-Tier-3",
+          "StartingRange": "15000000000",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "36D3E7396ZKUSWWW",
+          "usageType": "APS1-Request",
+          "Unit": "Request",
+          "PricePerUnit": "0.0000002000",
+          "PriceDescription": "AWS Lambda - Total Requests - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AmazonDynamoDB": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonDynamoDB/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "FVTYPQJ48D5HD595",
+          "usageType": "APS1-IA-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.1140000000",
+          "PriceDescription": "$0.11400 per GB-Month of IA storage in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "GSSDTS2TPQ4RHW4R",
+          "usageType": "APS1-TimedPITRStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.2280000000",
+          "PriceDescription": "$0.228 per GB-Month of storage used for DynamoDB PITR backup",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "PB5RUHHH4NWP57QF",
+          "usageType": "APS1-ReplWriteRequestUnits",
+          "Unit": "ReplicatedWriteRequestUnits",
+          "PricePerUnit": "0.0000007100",
+          "PriceDescription": "$0.71 per million replicated write request units (Asia Pacific (Singapore))",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "PFCX92ZEA4T293U3",
+          "usageType": "APS1-IA-ReadRequestUnits",
+          "Unit": "ReadRequestUnits",
+          "PricePerUnit": "0.0000001780",
+          "PriceDescription": "$0.178 per million IA read request units in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "PZTVP859DVDCGT8X",
+          "usageType": "APS1-WriteRequestUnits",
+          "Unit": "WriteRequestUnits",
+          "PricePerUnit": "0.0000007100",
+          "PriceDescription": "$0.71 per million write request units (Asia Pacific (Singapore))",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "UGMC2XP7PZW3A88R",
+          "usageType": "APS1-IA-WriteRequestUnits",
+          "Unit": "WriteRequestUnits",
+          "PricePerUnit": "0.0000008900",
+          "PriceDescription": "$0.89 per million IA write request units in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "XF4WN9CQUFPSY9SQ",
+          "usageType": "APS1-ReadRequestUnits",
+          "Unit": "ReadRequestUnits",
+          "PricePerUnit": "0.0000001425",
+          "PriceDescription": "$0.1425 per million read request units (Asia Pacific (Singapore))",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "YCMS8QPJ7DRVHAXD",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "$0.00 per GB-Month of storage for first 25 free GB-Months",
+          "StartingRange": "0",
+          "EndingRange": "25"
+        },
+        {
+          "SKU": "YCMS8QPJ7DRVHAXD",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.2850000000",
+          "PriceDescription": "$0.285 per GB-Month of storage used beyond first 25 free GB-Months",
+          "StartingRange": "25",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "YPBEDS7QQZW3Y5AM",
+          "usageType": "APS1-IA-ReplWriteRequestUnits",
+          "Unit": "ReplicatedWriteRequestUnits",
+          "PricePerUnit": "0.0000008900",
+          "PriceDescription": "$0.89 per million replicated IA write request units in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AmazonCloudWatch": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonCloudWatch/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "2BF5WZ4QVWF9XRRT",
+          "usageType": "APS1-CW:MetricMonitorUsage",
+          "Unit": "Metrics",
+          "PricePerUnit": "0.3000000000",
+          "PriceDescription": "$0.30 per metric-month for the first 10,000 metrics - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "10000"
+        },
+        {
+          "SKU": "2BF5WZ4QVWF9XRRT",
+          "usageType": "APS1-CW:MetricMonitorUsage",
+          "Unit": "Metrics",
+          "PricePerUnit": "0.1000000000",
+          "PriceDescription": "$0.10 per metric-month for the next 240,000 metrics - Asia Pacific (Singapore)",
+          "StartingRange": "10000",
+          "EndingRange": "250000"
+        },
+        {
+          "SKU": "2BF5WZ4QVWF9XRRT",
+          "usageType": "APS1-CW:MetricMonitorUsage",
+          "Unit": "Metrics",
+          "PricePerUnit": "0.0500000000",
+          "PriceDescription": "$0.05 per metric-month for the next 750,000 metrics - Asia Pacific (Singapore)",
+          "StartingRange": "250000",
+          "EndingRange": "1000000"
+        },
+        {
+          "SKU": "2BF5WZ4QVWF9XRRT",
+          "usageType": "APS1-CW:MetricMonitorUsage",
+          "Unit": "Metrics",
+          "PricePerUnit": "0.0200000000",
+          "PriceDescription": "$0.02 per metric-month for over 1,000,000 metrics - Asia Pacific (Singapore)",
+          "StartingRange": "1000000",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "3ZJZSGX8K87XPW4R",
+          "usageType": "Global-CW:MetricMonitorUsage",
+          "Unit": "Metrics",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "Global",
+          "StartingRange": "0",
+          "EndingRange": "10"
+        },
+        {
+          "SKU": "6XTVPDAM3VF25UTA",
+          "usageType": "Global-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "Global",
+          "StartingRange": "0",
+          "EndingRange": "5"
+        },
+        {
+          "SKU": "B8PMC467CFKKSW45",
+          "usageType": "APS1-CW:PromQLAlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.1000000000",
+          "PriceDescription": "$0.10 per Alarm in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "CGH689TTJCDHUDSM",
+          "usageType": "APS1-CW:HighResAlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.3000000000",
+          "PriceDescription": "$0.30 per alarm metric month (high resolution) - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "ERS2PGV5BX4XH4WQ",
+          "usageType": "APS1-CW:AlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.1000000000",
+          "PriceDescription": "$0.10 per alarm metric month (standard resolution) - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "FCH8WPMWVXA4B6VM",
+          "usageType": "Global-CW:AlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "Global",
+          "StartingRange": "0",
+          "EndingRange": "10"
+        },
+        {
+          "SKU": "HHP83RRZXJ6CTHJZ",
+          "usageType": "APS1-CW:LogAlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.1000000000",
+          "PriceDescription": "$0.10 per Alarm in Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "JZDR9XSHRTQTY4KH",
+          "usageType": "APS1-CW:CompositeAlarmMonitorUsage",
+          "Unit": "Alarms",
+          "PricePerUnit": "0.5000000000",
+          "PriceDescription": "$0.50 per composite alarm month - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "RKCBFFXUWXG8KUQY",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0300000000",
+          "PriceDescription": "$0.03 per GB-mo of log storage - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "SSNSJENVU973ECHE",
+          "usageType": "Global-DataProcessing-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "Global",
+          "StartingRange": "0",
+          "EndingRange": "5"
+        },
+        {
+          "SKU": "ZEKCE7VGMSM5XZPW",
+          "usageType": "APS1-DataProcessing-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.7000000000",
+          "PriceDescription": "$0.70 per GB custom log data ingested in Standard log class - Asia Pacific (Singapore)",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AmazonS3": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "M6MTARCQFUQBQ2V3",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0250000000",
+          "PriceDescription": "$0.025 per GB - first 50 TB / month of storage used",
+          "StartingRange": "0",
+          "EndingRange": "51200"
+        },
+        {
+          "SKU": "M6MTARCQFUQBQ2V3",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0240000000",
+          "PriceDescription": "$0.024 per GB - next 450 TB / month of storage used",
+          "StartingRange": "51200",
+          "EndingRange": "512000"
+        },
+        {
+          "SKU": "M6MTARCQFUQBQ2V3",
+          "usageType": "APS1-TimedStorage-ByteHrs",
+          "Unit": "GB-Mo",
+          "PricePerUnit": "0.0230000000",
+          "PriceDescription": "$0.023 per GB - storage used / month over 500 TB",
+          "StartingRange": "512000",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "T469UNPYX78434EG",
+          "usageType": "APS1-Requests-Tier2",
+          "Unit": "Requests",
+          "PricePerUnit": "0.0000004000",
+          "PriceDescription": "$0.004 per 10,000 GET and all other requests",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "VHRJWKRHEA6VHEFY",
+          "usageType": "APS1-Requests-Tier1",
+          "Unit": "Requests",
+          "PricePerUnit": "0.0000050000",
+          "PriceDescription": "$0.005 per 1,000 PUT, COPY, POST, or LIST requests",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AmazonVPC": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "6H23B5MFAG22ZMYA",
+          "usageType": "APS1-PublicIPv4:IdleAddress",
+          "Unit": "Hrs",
+          "PricePerUnit": "0.0050000000",
+          "PriceDescription": "$0.005 per Idle public IPv4 address per hour",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "C8D8VMQRDHMB9KRU",
+          "usageType": "APS1-PublicIPv4:InUseAddress",
+          "Unit": "Hrs",
+          "PricePerUnit": "0.0050000000",
+          "PriceDescription": "$0.005 per In-use public IPv4 address per hour",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        },
+        {
+          "SKU": "VEDTCH4Q86NQPGUU",
+          "usageType": "APS1-PublicIPv4:ContiguousBlock",
+          "Unit": "Hrs",
+          "PricePerUnit": "0.0080000000",
+          "PriceDescription": "$0.008 per hour per IPv4 address in contiguous IPv4 block",
+          "StartingRange": "0",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "AmazonSNS": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonSNS/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "4UYCBUH8F53SXWVM",
+          "usageType": "APS1-DeliveryAttempts-SMTP",
+          "Unit": "Notifications",
+          "PricePerUnit": "0.0000000000",
+          "PriceDescription": "First 1,000 Amazon SNS Email/Email-JSON Notifications per month are free",
+          "StartingRange": "0",
+          "EndingRange": "1000"
+        },
+        {
+          "SKU": "4UYCBUH8F53SXWVM",
+          "usageType": "APS1-DeliveryAttempts-SMTP",
+          "Unit": "Notifications",
+          "PricePerUnit": "0.0000200000",
+          "PriceDescription": "$2.00 per 100,000 Amazon SNS Email/Email-JSON Notifications thereafter",
+          "StartingRange": "1000",
+          "EndingRange": "Inf"
+        }
+      ]
+    },
+    "EventBridgeScheduler": {
+      "source": "https://aws.amazon.com/eventbridge/pricing/",
+      "invocations_usd_per_million": 1,
+      "monthly_free_invocations": 14000000
+    },
+    "AWSDataTransfer": {
+      "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSDataTransfer/current/ap-southeast-1/index.csv",
+      "rates": [
+        {
+          "SKU": "SDHP4R7WGBVJPQPY",
+          "usageType": "APS1-DataTransfer-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.1200000000",
+          "PriceDescription": "$0.120 per GB - first 10 TB / month data transfer out beyond the global free tier",
+          "StartingRange": "0",
+          "EndingRange": "10240"
+        },
+        {
+          "SKU": "SDHP4R7WGBVJPQPY",
+          "usageType": "APS1-DataTransfer-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0850000000",
+          "PriceDescription": "$0.085 per GB - next 40 TB / month data transfer out",
+          "StartingRange": "10240",
+          "EndingRange": "51200"
+        },
+        {
+          "SKU": "SDHP4R7WGBVJPQPY",
+          "usageType": "APS1-DataTransfer-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0820000000",
+          "PriceDescription": "$0.082 per GB - next 100 TB / month data transfer out",
+          "StartingRange": "51200",
+          "EndingRange": "153600"
+        },
+        {
+          "SKU": "SDHP4R7WGBVJPQPY",
+          "usageType": "APS1-DataTransfer-Out-Bytes",
+          "Unit": "GB",
+          "PricePerUnit": "0.0800000000",
+          "PriceDescription": "$0.080 per GB - greater than 150 TB / month data transfer out",
+          "StartingRange": "153600",
+          "EndingRange": "Inf"
+        }
+      ]
+    }
+  }
+}

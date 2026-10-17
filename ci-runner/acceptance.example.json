@@ -1,0 +1,50 @@
+{
+  "scope": "canary",
+  "source_commit": "REPLACE_WITH_QUALIFIED_PLATFORM_COMMIT",
+  "ami": "REPLACE_WITH_RECORDED_AMI",
+  "bake_sha256": "REPLACE_WITH_RECORDED_BAKE_HASH",
+  "routing_reevaluated": {
+    "verified": false,
+    "references": []
+  },
+  "one_job_per_vm": {
+    "verified": false,
+    "references": []
+  },
+  "cleanup_verified": {
+    "verified": false,
+    "references": []
+  },
+  "independent_cleanup_verified": {
+    "verified": false,
+    "references": []
+  },
+  "two_vm_capacity_verified": {
+    "verified": false,
+    "references": []
+  },
+  "tools_verified": {
+    "verified": false,
+    "references": []
+  },
+  "permissions_verified": {
+    "verified": false,
+    "references": []
+  },
+  "alerts_configured": {
+    "verified": false,
+    "references": []
+  },
+  "automatic_takeover_verified": {
+    "verified": false,
+    "references": []
+  },
+  "hosted_recovery_verified": {
+    "verified": false,
+    "references": []
+  },
+  "workflows_verified": {
+    "verified": false,
+    "references": []
+  }
+}
