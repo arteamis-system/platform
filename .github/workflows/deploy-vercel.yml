@@ -71,7 +71,7 @@ jobs:
       # deploy, so the Vercel dashboard is a projection of source control rather
       # than a place where configuration quietly diverges.
       - name: Sync environment variables
-        uses: arteamis-system/platform/actions/inject-secrets@51d6ba7ea6d4f56b54c3d37522034f2f1ed98117
+        uses: arteamis-system/platform/actions/inject-secrets@91ce65884dd0d01ac2668dc83b1d66586c64fd3d
         with:
           project: ${{ inputs.project }}
           environment: ${{ inputs.environment }}
