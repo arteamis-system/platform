@@ -16,7 +16,10 @@ def setup_policy():
     bucket = f"arn:aws:s3:::arteamis-ci-artifacts-{ACCOUNT}-{REGION}"
     statements = [
         statement(["cloudformation:CreateChangeSet", "cloudformation:DescribeChangeSet", "cloudformation:ExecuteChangeSet", "cloudformation:DeleteChangeSet", "cloudformation:CreateStack", "cloudformation:UpdateStack", "cloudformation:DeleteStack", "cloudformation:DescribeStacks", "cloudformation:DescribeStackEvents", "cloudformation:GetTemplate"],
-                  [f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/arteamis-ci-*/*", f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:changeSet/review-*/*"]),
+                  [f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/arteamis-ci-foundation/*",
+                   f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/arteamis-ci-runtime/*",
+                   f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:changeSet/arteamis-ci-review-*/*"]),
+        statement("cloudformation:DescribeStacks", f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/arteamis-ci-alerts/*"),
         statement("cloudformation:ValidateTemplate", "*"),
         statement("sts:DecodeAuthorizationMessage", "*"),
         statement("iam:CreateRole", roles, {"StringEquals": {"iam:PermissionsBoundary": BOUNDARY}}),

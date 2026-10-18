@@ -47,7 +47,7 @@ jobs:
       - run: terraform validate
 
       - name: Cloud login (keyless where the provider supports it)
-        uses: arteamis-system/platform/actions/cloud-oidc-login@51d6ba7ea6d4f56b54c3d37522034f2f1ed98117
+        uses: arteamis-system/platform/actions/cloud-oidc-login@3d4baa04e39382bf7946f9a4cd52ac9985025c70
         with:
           provider: ${{ inputs.cloud }}
           role_to_assume: ${{ vars.AWS_ROLE_ARN }}
@@ -128,7 +128,7 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
-      - uses: arteamis-system/platform/actions/cloud-oidc-login@51d6ba7ea6d4f56b54c3d37522034f2f1ed98117
+      - uses: arteamis-system/platform/actions/cloud-oidc-login@3d4baa04e39382bf7946f9a4cd52ac9985025c70
         with:
           provider: ${{ inputs.cloud }}
           role_to_assume: ${{ vars.AWS_ROLE_ARN }}
