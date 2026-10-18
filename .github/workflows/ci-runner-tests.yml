@@ -24,6 +24,11 @@ jobs:
       - run: python ci-runner/stack.py && python ci-runner/setup_policy.py && python ci-runner/alerts.py
       - run: cfn-lint --region ap-southeast-1 --template ci-runner/generated/foundation.json ci-runner/generated/runtime-preview.json ci-runner/generated/admin-bootstrap.json ci-runner/generated/admin-alerts.json
       - run: bash -n ci-runner/bake.sh && shellcheck ci-runner/bake.sh
+      - uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.3
+      - name: Execute the actual canary signing proof without release credentials
+        run: python ci-runner/check_signing_canary.py
       - name: Package and import the exact Linux Lambda dependencies
         run: |
           python ci-runner/provision.py package

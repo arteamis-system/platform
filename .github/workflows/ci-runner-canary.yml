@@ -90,6 +90,8 @@ jobs:
           severity: CRITICAL
           exit-code: '1'
       - uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.3
       - name: Throwaway signing and controller-secret denial
         env:
           RUNNER_ENVIRONMENT: ${{ runner.environment }}
@@ -99,8 +101,9 @@ jobs:
           cd "$RUNNER_TEMP"
           cosign generate-key-pair --output-key-prefix canary
           printf canary >payload
-          cosign sign-blob --key canary.key --tlog-upload=false --output-signature signature payload
-          cosign verify-blob --key canary.pub --signature signature --insecure-ignore-tlog payload
+          cosign signing-config create --out signing-config.json
+          cosign sign-blob --key canary.key --signing-config signing-config.json --bundle canary.sigstore.json payload
+          cosign verify-blob --key canary.pub --bundle canary.sigstore.json --offline --insecure-ignore-tlog payload
           if [[ "$RUNNER_ENVIRONMENT" == self-hosted ]]; then
             if aws ssm get-parameter --region ap-southeast-1 --name /arteamis/ci/github-app --with-decryption >denial.out 2>denial.err; then
               echo 'Controller secret access unexpectedly allowed'; exit 1
