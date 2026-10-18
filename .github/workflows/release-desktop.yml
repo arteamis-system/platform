@@ -100,7 +100,7 @@ jobs:
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
           for binary in "$app/Contents/MacOS/$executable" "$app/Contents/MacOS/arteamis-code-host"; do
             test -x "$binary"
-            lipo -verify_arch arm64 x86_64 "$binary"
+            lipo "$binary" -verify_arch arm64 x86_64
           done
 
       - name: Save the internal installer for review
@@ -247,7 +247,7 @@ jobs:
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
           for binary in "$app/Contents/MacOS/$executable" "$app/Contents/MacOS/arteamis-code-host"; do
             test -x "$binary"
-            lipo -verify_arch arm64 x86_64 "$binary"
+            lipo "$binary" -verify_arch arm64 x86_64
           done
           spctl --assess --type execute --verbose=2 "$app"
           xcrun stapler validate "$app"
