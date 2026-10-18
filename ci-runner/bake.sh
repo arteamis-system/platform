@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 # Runs once on a clean Ubuntu 24.04 x86-64 builder, before CreateImage.
 set -euo pipefail
+# SSM returns only the first 24 KiB of stdout. Keep package-install chatter
+# on disk and reserve stdout for the compressed inventory qualification record.
+exec 3>&1 4>&2
+exec > /var/log/arteamis-ci-bake.log 2>&1
+archive=''
+aws_work=''
+cleanup() {
+  local status=$1
+  if [[ -n "$archive" ]]; then rm -f -- "$archive"; fi
+  if [[ -n "$aws_work" ]]; then rm -rf -- "$aws_work"; fi
+  if (( status != 0 )); then
+    printf 'Arteamis CI bake failed; last diagnostic lines:\n' >&4
+    tail -n 40 /var/log/arteamis-ci-bake.log >&4
+  fi
+  return "$status"
+}
+trap 'cleanup "$?"' EXIT
 export DEBIAN_FRONTEND=noninteractive
 runner_version=2.338.0
 runner_sha256=af4b794c1bc41d73d40535e3fe092a39f9679cd8d965954c2aca25a05ca41d32
@@ -24,7 +41,6 @@ usermod -aG docker ubuntu
 install -d -o ubuntu -g ubuntu /opt/arteamis-runner
 archive=$(mktemp)
 aws_work=$(mktemp -d)
-trap 'rm -f "$archive"; rm -rf "$aws_work"' EXIT
 curl --fail --silent --show-error --location \
   "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${aws_version}.zip" --output "$aws_work/aws.zip"
 printf '%s  %s\n' "$aws_sha256" "$aws_work/aws.zip" | sha256sum --check --status
@@ -60,7 +76,9 @@ cloud-init clean --logs --machine-id
 # Flush the installed binaries and ownership before the normal CreateImage reboot.
 sync
 
-# Compress the public package inventory so SSM's 24 KiB stdout limit cannot truncate it.
-printf 'ARTEAMIS_INVENTORY='
-gzip -c /opt/arteamis-runner/ami-source.json | base64 -w0
-printf '\n'
+# Only the inventory uses the original stdout descriptor.
+{
+  printf 'ARTEAMIS_INVENTORY='
+  gzip -c /opt/arteamis-runner/ami-source.json | base64 -w0
+  printf '\n'
+} >&3

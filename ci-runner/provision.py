@@ -182,6 +182,8 @@ def bake(profile):
         script = (ROOT / "bake.sh").read_text()
         parameters = write_json(BUILD / "bake-parameters.json", {"commands": [script], "executionTimeout": ["900"]})
         command = aws(profile, "ssm", "send-command", "--instance-ids", instance, "--document-name", "AWS-RunShellScript", "--parameters", "file://" + str(parameters))["Command"]["CommandId"]
+        write_json(BUILD / "bake-command.json", {"command_id": command, "instance_id": instance,
+                   "bake_sha256": hashlib.sha256(script.encode()).hexdigest()})
         deadline = time.time() + 1000
         while time.time() < deadline:
             try:
