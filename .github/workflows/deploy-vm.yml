@@ -358,7 +358,7 @@ jobs:
       # Infisical is not configured this yields an empty file and the real .env is
       # expected out-of-band on the box (placed once, survives redeploys).
       - name: Resolve runtime secrets → .env
-        uses: arteamis-system/platform/actions/inject-secrets@3d4baa04e39382bf7946f9a4cd52ac9985025c70
+        uses: arteamis-system/platform/actions/inject-secrets@6e2ed6cac61699622e567531c89af40d83600244
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
