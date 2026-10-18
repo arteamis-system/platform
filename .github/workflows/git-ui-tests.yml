@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7

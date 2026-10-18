@@ -1,0 +1,44 @@
+{
+  "region": "ap-southeast-1",
+  "account": "779035457064",
+  "max_instances": 2,
+  "max_lifetime_seconds": 5400,
+  "probe_interval_seconds": 21600,
+  "routing_verified": false,
+  "instance_type": "m6i.large",
+  "repositories": {
+    "arteamis-system/backend": [
+      "ci.yml",
+      "release.yml",
+      "cutover-rehearsal.yml",
+      "ci-runner-canary.yml"
+    ],
+    "arteamis-system/web": [
+      "ci.yml",
+      "release.yml",
+      "ci-runner-canary.yml"
+    ],
+    "arteamis-system/landing": [
+      "ci.yml",
+      "release.yml",
+      "ci-runner-canary.yml"
+    ],
+    "arteamis-system/product": [
+      "docs.yml",
+      "ci-runner-canary.yml"
+    ]
+  },
+  "manual_releases": [
+    "arteamis-system/backend",
+    "arteamis-system/web",
+    "arteamis-system/landing"
+  ],
+  "canary_repository": "arteamis-system/backend",
+  "canary_repositories": [
+    "arteamis-system/backend",
+    "arteamis-system/web",
+    "arteamis-system/landing",
+    "arteamis-system/product"
+  ],
+  "max_queue_age_seconds": 7200
+}

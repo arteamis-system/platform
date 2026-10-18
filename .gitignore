@@ -15,3 +15,7 @@ tester-agent/coverage/
 __pycache__/
 *.pyc
 .terraform-provider-cache/
+
+# CI runner build products and private setup output
+ci-runner/.build/
+ci-runner/generated/

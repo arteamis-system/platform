@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "id": 7,
+      "status": "completed",
+      "conclusion": "failure",
+      "runner_id": 0,
+      "runner_name": "",
+      "steps": [], "labels": ["ubuntu-latest"]
+    }
+  ],
+  "annotations": {
+    "7": [
+      {
+        "annotation_level": "failure",
+        "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings"
+      }
+    ]
+  }
+}

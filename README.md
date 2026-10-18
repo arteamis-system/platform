@@ -228,3 +228,7 @@ breaks everyone's deploys.
 - [Feature release inventory](releases/refactor-2026-10-14.json): accepted areas remain unreleased until verified.
 - [Environment roots](environments/README.md) and [production inventory](ops/production-inventory.json).
 - `ops/check-production.py` is read-only. `ops/restore-backup.sh` restores into a new disposable container only.
+
+## Ephemeral AWS runner fallback
+
+[CI runner preparation and human setup](ci-runner/README.md) owns the disabled-by-default CloudFormation controller/pool, private-repository routing, cost model and secretless qualification. Source integration does not activate the pool or authorize a production release.

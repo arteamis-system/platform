@@ -1,0 +1,164 @@
+name: Ephemeral runner qualification
+run-name: Arteamis runner canary ${{ inputs.nonce }}
+on:
+  workflow_call:
+    inputs:
+      nonce:
+        description: Qualification record identifier
+        type: string
+        required: true
+      fail_hosted:
+        description: Deliberately fail on hosted for a manual routing test (never classified as billing)
+        type: boolean
+        default: false
+      application_checks:
+        description: Run the caller's real local CI commands without production secrets
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ci-runner-canary
+  cancel-in-progress: false
+jobs:
+  isolated:
+    name: isolated VM ${{ matrix.slot }}
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        slot: [1, 2, 3]
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
+    timeout-minutes: 15
+    steps:
+      - name: Controlled hosted failure
+        if: ${{ inputs.fail_hosted && runner.environment == 'github-hosted' }}
+        run: exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Fresh VM, bounded hold and Docker tools
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          set -euo pipefail
+          test ! -e /tmp/arteamis-canary-marker
+          touch /tmp/arteamis-canary-marker
+          if [[ "$RUNNER_ENVIRONMENT" == self-hosted ]]; then
+            imds=$(curl -fsS -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)
+            instance=$(curl -fsS -H "X-aws-ec2-metadata-token: $imds" http://169.254.169.254/latest/meta-data/instance-id)
+            printf 'instance=%s runner=%s run=%s attempt=%s source=%s\n' "$instance" "$RUNNER_NAME" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA"
+          fi
+          docker version
+          docker compose version
+          docker run -d --name canary-db -e POSTGRES_HOST_AUTH_METHOD=trust postgres:16-alpine
+          for attempt in {1..30}; do
+            if docker exec canary-db pg_isready -U postgres; then break; fi
+            sleep 2
+          done
+          docker exec canary-db pg_isready -U postgres
+          printf 'FROM alpine:3.22\nRUN echo canary >/proof\n' >"$RUNNER_TEMP/Dockerfile"
+          docker build -t arteamis-canary:local "$RUNNER_TEMP"
+          docker run --rm arteamis-canary:local cat /proof
+          # With three jobs, two slots must be busy and the third must wait.
+          sleep 120
+      - name: Browser toolchain without application access
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser"
+          cd "$RUNNER_TEMP/browser"
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node - <<'JS'
+          const {chromium} = require('playwright');
+          (async () => { const b = await chromium.launch({headless:true}); const p = await b.newPage();
+            await p.setContent('<title>canary</title>'); if (await p.title() !== 'canary') process.exitCode=1; await b.close(); })();
+          JS
+      - uses: anchore/sbom-action@v0
+        with:
+          image: arteamis-canary:local
+          output-file: canary.spdx.json
+          upload-artifact: false
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: arteamis-canary:local
+          severity: CRITICAL
+          exit-code: '1'
+      - uses: sigstore/cosign-installer@v4.1.2
+      - name: Throwaway signing and controller-secret denial
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          COSIGN_PASSWORD: ''
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          cosign generate-key-pair --output-key-prefix canary
+          printf canary >payload
+          cosign sign-blob --key canary.key --tlog-upload=false --output-signature signature payload
+          cosign verify-blob --key canary.pub --signature signature --insecure-ignore-tlog payload
+          if [[ "$RUNNER_ENVIRONMENT" == self-hosted ]]; then
+            if aws ssm get-parameter --region ap-southeast-1 --name /arteamis/ci/github-app --with-decryption >denial.out 2>denial.err; then
+              echo 'Controller secret access unexpectedly allowed'; exit 1
+            fi
+            grep -q AccessDeniedException denial.err
+            rm -f denial.out denial.err
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: canary-${{ matrix.slot }}
+          path: canary.spdx.json
+          retention-days: 3
+
+  application:
+    name: Secretless application gates
+    if: ${{ inputs.application_checks }}
+    runs-on: ${{ fromJSON(format(github.repository == 'arteamis-system/platform' && '["ubuntu-24.04"]' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '["ubuntu-24.04"]' || vars.ARTEAMIS_CI_RUNNERS || '["ubuntu-24.04"]', github.run_id)) }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v9.0.0
+      - name: Run existing gates without release authority
+        env:
+          CALLER: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          case "$CALLER" in
+            arteamis-system/backend)
+              uv run ruff check .
+              uv run --extra ci --extra apns python scripts/run_ci_tests.py --provision
+              ;;
+            arteamis-system/web)
+              npm ci
+              npm run typecheck
+              npm run test:ci
+              npx playwright install --with-deps chromium
+              npx playwright test e2e/rules.spec.ts e2e/docs.spec.ts e2e/ask.spec.ts \
+                e2e/shell.spec.ts e2e/surface-navigation.spec.ts e2e/team-chat.spec.ts \
+                e2e/chat-actions.spec.ts e2e/chat-interactions.spec.ts e2e/chat-notifications.spec.ts \
+                --project=chromium-light
+              ;;
+            arteamis-system/landing)
+              npm ci
+              npx playwright install --with-deps chromium
+              npm test
+              ;;
+            arteamis-system/product)
+              echo 'Documentation is checked by the immutable platform action in the next step'
+              ;;
+            *) echo 'Repository is not approved for application qualification'; exit 1 ;;
+          esac
+      - if: ${{ github.repository == 'arteamis-system/product' }}
+        uses: arteamis-system/platform/actions/docs-check@030e508ddb624b530351ea41ac5162203367f13b
