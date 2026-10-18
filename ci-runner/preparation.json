@@ -31,7 +31,11 @@
     "validated_component_commit": "91ce65884dd0d01ac2668dc83b1d66586c64fd3d",
     "component_checks": "https://github.com/arteamis-system/platform/actions/runs/39019526841",
     "native_lambda_check": "https://github.com/arteamis-system/platform/actions/runs/39019526782",
-    "status": "Code-owner approval required; no bypass attempted",
-    "merge_strategy": "Merge commits preserve reviewed immutable component/assembly pins as main ancestors"
+    "status": "Component merged 2026-10-18 under explicit user review waiver; assembly and consumer integration in progress",
+    "merge_strategy": "Squash merges required by linear history; deliberately repin each dependency to its actual main commit",
+    "merged_component_commit": "3d4baa04e39382bf7946f9a4cd52ac9985025c70",
+    "component_main_checks": "https://github.com/arteamis-system/platform/actions/runs/39091799494",
+    "native_lambda_main_check": "https://github.com/arteamis-system/platform/actions/runs/39091799516",
+    "review_authorization": "User explicitly waived code-owner review on 2026-10-18; temporarily lower only review requirements for merges, then restore and verify"
   }
 }

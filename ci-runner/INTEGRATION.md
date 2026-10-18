@@ -1,37 +1,13 @@
-# Source integration gate
+# Source integration
 
-All autonomous source preparation is reviewable in the component, assembly and four consumer PRs. No source was merged using an administrator bypass. GitHub's existing platform main policy requires one code-owner approval, dismisses stale approvals and requires the `selftest` check with an up-to-date base. This is an unavoidable owner step, separate from AWS/App approval. The component's public hosted CI and native Lambda checks are green.
+The user explicitly waived code-owner review and authorized source merges on 2026-10-18. GitHub's existing platform policy requires linear history, one code-owner approval and green, current `selftest`. An admin merge alone still enforces review. For these accepted PRs only, temporarily lower the review requirement to zero with code-owner review off, merge the exact tested head, then restore and verify the original review settings immediately in a `finally` block. Preserve required checks, linear history, all branches and worktrees. Do not fake approvals or checks.
 
-Keep the review branches. Use **merge commits** for the two platform PRs so the validated immutable pin targets become ancestors of main without changing their IDs. Squashing/rebasing requires a fresh deliberate pin update; do not silently substitute another commit.
+[Component PR #17](https://github.com/arteamis-system/platform/pull/17) was squash-merged as `3d4baa04e39382bf7946f9a4cd52ac9985025c70`. Its tree is identical to validated head `91ce65884dd0d01ac2668dc83b1d66586c64fd3d`. Review settings were restored and verified. Verify the merged component's hosted selftest before proceeding.
 
-1. A code owner reviews and approves [component PR #17](https://github.com/arteamis-system/platform/pull/17), whose validated head is `91ce65884dd0d01ac2668dc83b1d66586c64fd3d`. Once all required checks and approval pass:
+1. Retarget [assembly PR #18](https://github.com/arteamis-system/platform/pull/18) to main and reconcile its base without force-pushing. Every internal action/workflow and policy reference must deliberately point to the actual component main commit above. Wait for green hosted selftest and native Lambda checks, then squash-merge the exact tested head using the authorized review waiver. Record the resulting main SHA.
+2. Update `ci/aws-runner-routing` in backend, web, landing and product to that actual assembly main SHA. Inspect the complete nested immutable workflow graph and run workflow/admission checks. Merge the accepted consumer source PRs: [backend #21](https://github.com/arteamis-system/backend/pull/21), [web #14](https://github.com/arteamis-system/web/pull/14), [landing #2](https://github.com/arteamis-system/landing/pull/2), [product #6](https://github.com/arteamis-system/product/pull/6). Private CI currently receives pre-run billing rejections; record those as failures, never passes.
+3. Fetch all seven workspace repositories and fast-forward primary main checkouts. Confirm clean working trees and identical main/origin/main IDs. Keep existing branches and scratch worktrees. `.github` and desktop have no source change here; macOS remains hosted.
 
-   ```sh
-   gh pr checks 17 --repo arteamis-system/platform
-   gh pr merge 17 --repo arteamis-system/platform --merge
-   ```
+Consumer changes add configurable Linux routing, timeouts, explicitly hosted recovery probes and secretless manual canaries. Existing application triggers, permissions, environments, concurrency and deployment steps are preserved. Backend's SSH argument adapter remains necessary. Backend/web production releases remain deliberate manual runs on main. Source integration never dispatches a production workflow, changes production configuration or pushes `deploy/*`.
 
-2. Retarget the assembly PR (`ci/aws-runner-pins`) from the component branch to main, and bring it up to date if required. Its internal workflow/action/policy pins point at the validated component above. Review the final assembly diff, wait for green selftest/native runner checks, then obtain its code-owner approval **after** any update that dismisses stale reviews:
-
-   ```sh
-   gh pr edit ci/aws-runner-pins --repo arteamis-system/platform --base main
-   gh pr update-branch ci/aws-runner-pins --repo arteamis-system/platform
-   gh pr checks ci/aws-runner-pins --repo arteamis-system/platform
-   gh pr merge ci/aws-runner-pins --repo arteamis-system/platform --merge
-   ```
-
-   If `update-branch` reports the branch is already current, no update is needed. Review/approval is through GitHub's normal UI; do not use `--admin`, fake a check result, weaken protection or delete a branch.
-
-3. Review and merge the `ci/aws-runner-routing` PR in each private repository: backend, web, landing, product. Each pins the tested assembly commit, adds an explicitly hosted recovery probe and a secretless manually dispatched canary wrapper. Linux selectors/timeouts are the only behavior change to existing direct jobs; existing triggers, permissions, environments, concurrency and steps are preserved. The backend SSH argument adapter is retained because the shared deployment still needs it. Application release workflows remain manual. These private repositories may show pre-run billing failures; record those as failures, not test passes. Local workflow/pin/admission validation is available in this preparation. Source acceptance does not establish live runner qualification.
-
-   ```sh
-   gh pr view ci/aws-runner-routing --repo arteamis-system/backend
-   gh pr view ci/aws-runner-routing --repo arteamis-system/web
-   gh pr view ci/aws-runner-routing --repo arteamis-system/landing
-   gh pr view ci/aws-runner-routing --repo arteamis-system/product
-   # After review and acceptance, use gh pr merge ci/aws-runner-routing --repo arteamis-system/<repo> --squash.
-   ```
-
-4. Fetch all seven workspace repositories and fast-forward primary main checkouts without resetting local work. Confirm clean working trees and identical `main`/`origin/main` IDs. `.github` and desktop have no source change for this task; macOS remains hosted. Existing branches and scratch worktrees remain intact. The prepared platform worktree is retained for review until the owner finishes integration.
-
-Then follow the single ordered [AWS/App human setup list](README.md#ordered-human-setup-after-source-preparation), followed by [live qualification](QUALIFICATION.md). The initial runtime remains disabled/canary-only; a source merge never activates routing or runs a production release.
+After source integration, follow the consolidated [AWS/App setup list](README.md#ordered-human-setup-after-source-preparation), then [live qualification](QUALIFICATION.md). Initial runtime routing/controller schedules stay disabled, while independent cleanup is enabled. Source merge, AWS provision, live qualification and activation are separate evidence.
