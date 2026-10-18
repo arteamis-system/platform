@@ -47,5 +47,30 @@
   "full_automatic_fallback_activated": false,
   "operating_record": "LIVE.md",
   "application_test_gates": "Cancelled at user direction; not passes",
-  "operating_mode": "Manual AWS routing for separately authorized backend/web releases; automatic retries disabled"
+  "operating_mode": "Controller stop true; controller schedule disabled; reaper enabled; all four routing variables absent; zero pool instances/volumes/registrations at 2026-10-18T05:16Z",
+  "deployed_controller_source": "62f812d3f299917b53e00d7a9b16f4fddbdf9904",
+  "deployed_bundle_sha256": "879ec53d92efb965e9751f20b29e490727be4ed4ae668bf8e5c1945eeefc5b48",
+  "backend_release": {
+    "run": 39098617850,
+    "success": true,
+    "running_revision_verified": true
+  },
+  "web_release": {
+    "run": 39099269643,
+    "mirror_published": true,
+    "mirror_commit_prefix": "6d6fa4b",
+    "vercel_build_verified": false
+  },
+  "new_queue_regression_cases": {
+    "prepared": 3,
+    "executed": false
+  },
+  "application_test_waiver": {
+    "verified": false,
+    "waived": true,
+    "reason": "Owner explicitly requested skipping remaining tests/CI to prioritize backend/web production releases",
+    "references": [
+      "https://github.com/arteamis-system/platform/pull/22"
+    ]
+  }
 }

@@ -246,10 +246,13 @@ def validate_evidence(proof, ami, accept_untested_workflows=False):
             raise ValueError("Incomplete live evidence: " + field)
 
 
-def deploy(profile, ami, evidence=None, enable=False, alarm_topic=None, execute=False, accept_untested_workflows=False):
+def deploy(profile, ami, evidence=None, enable=False, alarm_topic=None, execute=False, accept_untested_workflows=False,
+           manual_release_mode=False):
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True):
         raise ValueError("Commit and validate the platform source before deploying its CI artifacts")
     scope = "canary"
+    if manual_release_mode and evidence:
+        raise ValueError("Manual routing and automatic qualification evidence are separate operating modes")
     if accept_untested_workflows and not evidence:
         raise ValueError("Application-check waiver requires full-scope evidence and an owner authorization reference")
     if evidence:
@@ -283,14 +286,17 @@ def deploy(profile, ami, evidence=None, enable=False, alarm_topic=None, execute=
     key = "controller/" + digest + ".zip"
     aws(profile, "s3api", "put-object", "--bucket", network["ArtifactBucket"], "--key", key, "--body", str(archive), "--server-side-encryption", "AES256")
     if not apply_stack(profile, "arteamis-ci-runtime", stack.runtime(
-            ami, key, network, bool(evidence), enable, alarm_topic, qualification_only=scope != "all"), execute):
+            ami, key, network, bool(evidence), enable or manual_release_mode, alarm_topic,
+            qualification_only=scope != "all" and not manual_release_mode), execute):
         return
     expected = base64.b64encode(bytes.fromhex(digest)).decode()
     for name in ("arteamis-ci-controller", "arteamis-ci-reaper"):
         function = aws(profile, "lambda", "get-function-configuration", "--function-name", name)
         if function["CodeSha256"] != expected:
             raise RuntimeError("Deployed Lambda artifact hash mismatch")
-    print("CI Lambda artifact hashes verified; automatic routing gate:", bool(evidence), "controller schedule:", enable)
+    print("CI Lambda artifact hashes verified; automatic routing gate:", bool(evidence), "controller schedule:", enable or manual_release_mode)
+    if manual_release_mode:
+        print("Manual routing mode: explicitly routed approved jobs only; no automatic retry or release dispatch")
 
 
 def invoke(profile, action, repository=None):
@@ -322,12 +328,16 @@ def main():
     parser.add_argument("--accept-untested-workflows", action="store_true",
                         help="Accept an explicitly referenced owner waiver of application checks only; never waives hosted recovery or runner safety evidence")
     parser.add_argument("--enable-canary", action="store_true")
+    parser.add_argument("--manual-release-mode", action="store_true",
+                        help="Enable supply for explicitly routed approved jobs with automatic retries off; does not change routing or dispatch a release")
     parser.add_argument("--alarm-topic")
     parser.add_argument("--repository")
     parser.add_argument("--execute", action="store_true", help="Execute the generated CI-only change set after offline template review")
     args = parser.parse_args()
     if args.accept_untested_workflows and args.command != "deploy":
         parser.error("--accept-untested-workflows is only valid with deploy")
+    if args.manual_release_mode and (args.command != "deploy" or args.enable_canary or args.evidence):
+        parser.error("--manual-release-mode requires deploy and cannot combine with canary/evidence modes")
     BUILD.mkdir(exist_ok=True)
     if args.command == "plan":
         write_json(BUILD / "foundation.json", stack.foundation())
@@ -351,7 +361,7 @@ def main():
         if not args.ami:
             parser.error("deploy requires --ami")
         deploy(args.profile, args.ami, args.evidence, args.enable_canary or bool(args.evidence), args.alarm_topic, args.execute,
-               accept_untested_workflows=args.accept_untested_workflows)
+               accept_untested_workflows=args.accept_untested_workflows, manual_release_mode=args.manual_release_mode)
     elif args.command in ("clear-override", "qualify-recovery"):
         config = json.loads((ROOT / "config.json").read_text())
         if args.repository not in config["repositories"]:
