@@ -314,7 +314,7 @@ def invoke(profile, action, repository=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["plan", "package", "foundation", "install-app", "bake", "deploy", "disable", "resume", "restore-routing", "tick", "clear-override", "status"])
+    parser.add_argument("command", choices=["plan", "package", "foundation", "install-app", "bake", "deploy", "disable", "resume", "restore-routing", "tick", "clear-override", "qualify-recovery", "status"])
     parser.add_argument("--profile", default="arteamis-ci-operator")
     parser.add_argument("--app-file", type=Path)
     parser.add_argument("--ami")
@@ -352,10 +352,10 @@ def main():
             parser.error("deploy requires --ami")
         deploy(args.profile, args.ami, args.evidence, args.enable_canary or bool(args.evidence), args.alarm_topic, args.execute,
                accept_untested_workflows=args.accept_untested_workflows)
-    elif args.command == "clear-override":
+    elif args.command in ("clear-override", "qualify-recovery"):
         config = json.loads((ROOT / "config.json").read_text())
         if args.repository not in config["repositories"]:
-            parser.error("clear-override requires an allowlisted --repository")
+            parser.error(args.command + " requires an allowlisted --repository")
         print(json.dumps(invoke(args.profile, args.command, args.repository)))
     else:
         print(json.dumps(invoke(args.profile, args.command)))

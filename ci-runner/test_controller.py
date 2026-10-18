@@ -355,6 +355,10 @@ class PoolTests(unittest.TestCase):
         self.gh = Mock()
         self.gh.pages.return_value = []
         self.gh.call.return_value = {"runner": {"id": 10}, "encoded_jit_config": "ONE_USE_TOKEN"}
+        self.gh.call.side_effect = lambda _repo, method, path, *args: (
+            {"status": "queued", "run_id": 1, "labels": controller.aws_labels(1)}
+            if method == "GET" and path.startswith("/actions/jobs/")
+            else self.gh.call.return_value)
         self.state = MemoryState()
         self.pool = pool.Pool(self.ec2, "lt-ci", "3")
         def launch(**args):
@@ -376,6 +380,41 @@ class PoolTests(unittest.TestCase):
             self.assertIn("shutdown -h now", boot)
             self.assertIn("--jitconfig ONE_USE_TOKEN", boot)
             self.assertNotIn("private_key", boot)
+
+    def test_stale_queue_cannot_launch_after_assignment_or_completion(self):
+        for status in ("in_progress", "completed"):
+            self.gh.call.side_effect = None
+            self.gh.call.return_value = {"status": status, "run_id": 1, "labels": controller.aws_labels(1)}
+            result = self.pool.fulfill(self.gh, self.state, [("", "arteamis-system/platform", 7, 1)], 2, 10000)
+            self.assertEqual(result["launched"], 0)
+        self.ec2.run_instances.assert_not_called()
+        self.assertEqual(self.state.get("slot:0"), {})
+
+    def test_stale_queue_requires_same_run_and_exact_labels(self):
+        for change in ({"run_id": 2}, {"labels": ["ubuntu-24.04"]}):
+            self.gh.call.side_effect = None
+            self.gh.call.return_value = {"status": "queued", "run_id": 1,
+                                        "labels": controller.aws_labels(1), **change}
+            self.pool.fulfill(self.gh, self.state, [("", "arteamis-system/platform", 7, 1)], 2, 10000)
+        self.ec2.run_instances.assert_not_called()
+
+    def test_terminal_run_spare_is_reaped_but_busy_or_unknown_runner_is_preserved(self):
+        repo = "arteamis-system/platform"
+        row = instance(Tags=[{"Key": "ArteamisCiRepository", "Value": repo},
+                             {"Key": "ArteamisCiRun", "Value": "1"},
+                             {"Key": "ArteamisCiRunner", "Value": "arteamis-ci-spare"}])
+        self.observed = [row]
+        self.gh.call.side_effect = None
+        self.gh.call.return_value = {"id": 1, "status": "completed"}
+        for busy in (True, None):
+            self.gh.pages.return_value = [{"id": 10, "name": "arteamis-ci-spare", "status": "online", "busy": busy}]
+            self.pool.reconcile(self.gh, self.state, 10000)
+        self.gh.pages.return_value = []
+        self.pool.reconcile(self.gh, self.state, 10000)
+        self.ec2.terminate_instances.assert_not_called()
+        self.gh.pages.return_value = [{"id": 10, "name": "arteamis-ci-spare", "status": "online", "busy": False}]
+        self.pool.reconcile(self.gh, self.state, 10000)
+        self.ec2.terminate_instances.assert_called_once_with(InstanceIds=[row["InstanceId"]])
 
     def test_ambiguous_launch_reserves_capacity(self):
         self.ec2.run_instances.side_effect = TimeoutError()

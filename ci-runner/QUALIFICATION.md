@@ -66,6 +66,19 @@ The canary-only scope permits only the named canary wrappers in backend, web, la
 
 GOL has local tests and live takeover/cleanup evidence, but no successful live hosted recovery proof to borrow. Arteamis must establish its own:
 
+If the original takeover modes were already restored while draining the pilot, use the recovery-only preparation command after hosted availability returns. This requires the updated controller from this source, a disabled stop switch, canary-only capacity, automatic takeover off, no existing mode/override, and absent or explicitly hosted routing. It saves the exact value before changing routing; it launches no canary or release and requests no retry:
+
+```sh
+ARTEAMIS_AMI=ami-07a511df2b588b737
+ci-runner/.build/venv/bin/python ci-runner/provision.py disable
+ci-runner/.build/venv/bin/python ci-runner/provision.py deploy --ami "$ARTEAMIS_AMI" --enable-canary --alarm-topic arn:aws:sns:ap-southeast-1:779035457064:arteamis-ci-alerts
+# Review/execute the named change set, then verify both artifact hashes.
+ci-runner/.build/venv/bin/python ci-runner/provision.py qualify-recovery --repository arteamis-system/product
+ci-runner/.build/venv/bin/python ci-runner/provision.py resume
+```
+
+The next tick dispatches the literal-hosted probe. Require its exact nonce and successful hosted identity, the `hosted-recovered` record and restoration of the saved value. This path was prepared after the owner waived tests; it has not been run live. Keep it separate from the already observed billing takeover, and do not describe recovery as qualified until the hosted result and restoration are observed. Finish with `disable`/`restore-routing` and zero-capacity verification. Do not use `clear-override` to erase a person's override merely to enter this window.
+
 1. Keep the canary's controller-owned AWS mode and saved value after automatic takeover. Record the DynamoDB mode metadata without reading App configuration. The controller dispatches `ci-hosted-probe.yml` on backend main every six hours using a unique nonce; the workflow has no secrets, empty permissions, literal `ubuntu-24.04` and a two-minute timeout. Do not edit the probe to use configurable routing.
 2. While billing remains blocked, verify a failed probe does **not** restore routing or trigger a retry/runner VM. In a separate controlled test, set a manual hosted/custom override and prove the controller records manual ownership and leaves it untouched; restore the intended hosted baseline and explicitly clear that override before another takeover. Do not erase retry tombstones.
 3. After an owner restores hosted availability through GitHub billing/allowance, wait for the next scheduled probe (up to six hours). Observe the matching nonce/title, `workflow_dispatch`, main branch, one successful job, literal hosted label, a GitHub Actions runner identity and assigned runner ID. A successful unrelated or AWS job is insufficient.

@@ -112,10 +112,35 @@ class Pool:
         observed = instances(self.ec2)
         recorded_repos = {state.get(f"slot:{slot}").get("repo") for slot in range(2)} - {None}
         active = [i for i in observed if i["State"]["Name"] in ACTIVE]
+        registered, runs = {}, {}
         for instance in active:
             if expired(instance, now):
                 self.ec2.terminate_instances(InstanceIds=[instance["InstanceId"]])
                 audit("expired-vm-terminated", instance_id=instance["InstanceId"])
+                continue
+            info = tags(instance)
+            repo, run_id = info.get("ArteamisCiRepository", ""), info.get("ArteamisCiRun", "")
+            if (not repo.startswith("arteamis-system/") or not run_id.isdigit()
+                    or (self.repositories and repo not in self.repositories)):
+                continue
+            if repo not in registered:
+                registered[repo] = {r["name"]: r for r in gh.pages(repo, "/actions/runners", "runners")}
+            runner = registered[repo].get(info.get("ArteamisCiRunner"))
+            # Queue snapshots can race assignment. Never retain a spare VM for
+            # a terminal run, but require positive non-busy registration before
+            # terminating early; missing registration alone proves nothing.
+            if runner is not None and runner.get("busy") is False:
+                key = (repo, int(run_id))
+                if key not in runs:
+                    try:
+                        runs[key] = gh.call(repo, "GET", f"/actions/runs/{run_id}")
+                    except ApiError as error:
+                        if error.status != 404:
+                            raise
+                        runs[key] = {}
+                if runs[key].get("id") == int(run_id) and runs[key].get("status") == "completed":
+                    self.ec2.terminate_instances(InstanceIds=[instance["InstanceId"]])
+                    audit("completed-run-idle-vm-terminated", repo=repo, run_id=int(run_id), instance_id=instance["InstanceId"])
         for slot in range(2):
             key = f"slot:{slot}"
             record = state.get(key)
@@ -178,6 +203,12 @@ class Pool:
                 continue
             if capacity <= 0:
                 break
+            # Re-read immediately before admitting supply. A runner may have
+            # started/completed this job since Controller collected its queue.
+            current = gh.call(repo, "GET", f"/actions/jobs/{job_id}")
+            if (current.get("status") != "queued" or current.get("run_id") != run_id
+                    or set(current.get("labels", [])) != set(aws_labels(run_id))):
+                continue
             progress = state.get("pool-progress:" + repo).get("runner")
             demand_key = supply_key(repo, queued, progress)
             supply = state.get(demand_key)

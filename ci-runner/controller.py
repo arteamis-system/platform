@@ -557,6 +557,24 @@ def lambda_handler(event, context):
             return {"override_cleared": repo}
         secret = boto3.client("ssm").get_parameter(Name=os.environ["APP_PARAMETER"], WithDecryption=True)["Parameter"]["Value"]
         gh = GitHub(json.loads(secret))
+        if event.get("action") == "qualify-recovery":
+            repo = event.get("repository")
+            # Prepare a recovery-only window after a drained pilot. This does
+            # not dispatch a canary/release or replay any job. The existing
+            # nonce-correlated hosted probe performs the restoration.
+            if (repo not in config.get("canary_repositories", [])
+                    or not config["qualification_only"] or config["routing_verified"]
+                    or not state.get("control").get("disabled")):
+                raise ValueError("Recovery qualification requires disabled, manual canary-only operation and an approved repository")
+            key = "mode:" + repo
+            previous = gh.variable(repo)
+            if state.get(key) or previous not in (None, HOSTED):
+                raise ValueError("Preserve existing routing ownership/overrides before recovery qualification")
+            mode = {"previous": previous, "phase": "switching", "enabled_at": now}
+            state.put(key, mode)
+            gh.set_variable(repo, AWS)
+            state.put(key, {**mode, "phase": "aws"})
+            return {"recovery_qualification_prepared": repo, "previous": previous}
         if event.get("action") == "restore-routing":
             state.put("control", {"disabled": True})
             restored = []
