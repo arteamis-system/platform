@@ -1,6 +1,6 @@
 # Arteamis automatic runner fallback
 
-Prepared source only. AWS resources, App installation, AMI execution, billing takeover and hosted recovery are **not deployed or qualified** by this change. Default routing is GitHub-hosted Ubuntu 24.04. The runtime starts with its controller schedule and automatic routing disabled. The independent reaper stays enabled whenever the runtime exists.
+AWS resources, the dedicated App and the runner AMI were provisioned on 2026-10-18. Live jobs established original-run rerouting, automatic canary takeover, one-job VM isolation and cleanup. **Successful hosted recovery remains unverified; general automatic takeover remains disabled.** See the dated [live operating record](LIVE.md) for current modes, source revisions, release evidence and remaining steps. Default routing is GitHub-hosted Ubuntu 24.04. The independent reaper stays enabled whenever the runtime exists.
 
 This is adapted from GOL's Python/CloudFormation controller and two-slot JIT pool, including its ambiguous-request, queued-work, reusable-workflow, delayed-variable-readback and completed-work regressions. GOL's operational authority, credentials, resource IDs and acceptance records are not Arteamis evidence. See [costs](COSTS.md), [qualification](QUALIFICATION.md) and the [source validation record](VALIDATION.md).
 

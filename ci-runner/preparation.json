@@ -2,10 +2,10 @@
   "prepared": "2026-10-17",
   "reference_source": "Gol-Network/infra@efab42413290a129bfbf0cb5979e79c33427b81b",
   "authority": "Mechanisms and regression tests only; no credentials, resource identities or live acceptance transferred",
-  "aws_deployed": false,
-  "app_installed": false,
+  "aws_deployed": true,
+  "app_installed": true,
   "routing_activated": false,
-  "live_canary_verified": false,
+  "live_canary_verified": true,
   "hosted_recovery_verified": false,
   "validation": {
     "controller_tests": 70,
@@ -20,22 +20,32 @@
     "terraform_modules_and_roots": 10
   },
   "limitations": [
-    "AWS access and App setup deferred",
-    "Live AMI/runtime/canary/takeover/hosted recovery require qualification",
+    "Successful hosted recovery remains unverified because GitHub billing rejects probes before execution",
+    "Remaining application checks and CI explicitly waived by user",
     "macOS stays hosted",
-    "Public platform stays hosted; private callers use their own routing",
-    "Administration/configuration helper workflows excluded from automatic admission"
+    "Public platform stays hosted; private callers use repository routing",
+    "Administrative/configuration helper workflows excluded from automatic admission",
+    "AWS cost allocation tag publication/activation remains pending"
   ],
   "source_integration": {
     "component_pr": "https://github.com/arteamis-system/platform/pull/17",
     "validated_component_commit": "91ce65884dd0d01ac2668dc83b1d66586c64fd3d",
     "component_checks": "https://github.com/arteamis-system/platform/actions/runs/39019526841",
     "native_lambda_check": "https://github.com/arteamis-system/platform/actions/runs/39019526782",
-    "status": "Component merged 2026-10-18 under explicit user review waiver; assembly and consumer integration in progress",
+    "status": "Component, bake/signing fixes, nested assembly and all four consumers merged",
     "merge_strategy": "Squash merges required by linear history; deliberately repin each dependency to its actual main commit",
     "merged_component_commit": "3d4baa04e39382bf7946f9a4cd52ac9985025c70",
     "component_main_checks": "https://github.com/arteamis-system/platform/actions/runs/39091799494",
     "native_lambda_main_check": "https://github.com/arteamis-system/platform/actions/runs/39091799516",
-    "review_authorization": "User explicitly waived code-owner review on 2026-10-18; temporarily lower only review requirements for merges, then restore and verify"
-  }
+    "review_authorization": "User explicitly waived code-owner review on 2026-10-18; temporarily lower only review requirements for merges, then restore and verify",
+    "component_commit": "6e2ed6cac61699622e567531c89af40d83600244",
+    "assembly_commit": "06fdff6b7669a3c31ecb83260dc4ed31c6ee6c23",
+    "live_record": "LIVE.md"
+  },
+  "updated": "2026-10-18",
+  "automatic_canary_takeover_verified": true,
+  "full_automatic_fallback_activated": false,
+  "operating_record": "LIVE.md",
+  "application_test_gates": "Cancelled at user direction; not passes",
+  "operating_mode": "Manual AWS routing for separately authorized backend/web releases; automatic retries disabled"
 }
