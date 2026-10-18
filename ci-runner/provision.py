@@ -219,7 +219,7 @@ BASE_EVIDENCE = ("routing_reevaluated", "one_job_per_vm", "cleanup_verified", "i
 FULL_EVIDENCE = ("automatic_takeover_verified", "hosted_recovery_verified", "workflows_verified")
 
 
-def validate_evidence(proof, ami):
+def validate_evidence(proof, ami, accept_untested_workflows=False):
     if proof.get("scope") not in ("canary", "all"):
         raise ValueError("Evidence scope must be canary or all")
     source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
@@ -227,24 +227,43 @@ def validate_evidence(proof, ami):
             or proof.get("bake_sha256") != hashlib.sha256((ROOT / "bake.sh").read_bytes()).hexdigest()):
         raise ValueError("Evidence must identify this committed source and reviewed AMI bake")
     required = BASE_EVIDENCE + (FULL_EVIDENCE if proof["scope"] == "all" else ())
+    if accept_untested_workflows and proof["scope"] != "all":
+        raise ValueError("Application-check waiver applies only to full-scope evidence")
+    waiver = proof.get("workflows_verified", {})
+    if accept_untested_workflows and not (
+            isinstance(waiver, dict) and waiver.get("verified") is False
+            and waiver.get("waived") is True and isinstance(waiver.get("reason"), str)
+            and waiver["reason"].strip()):
+        raise ValueError("Application-check exception requires verified=false, waived=true and an owner authorization reason")
     for field in required:
         record = proof.get(field, {})
-        if (not isinstance(record, dict) or record.get("verified") is not True
+        # An owner's explicit application-test waiver is not execution evidence.
+        # This exception cannot waive takeover, recovery, isolation or cleanup.
+        waived = field == "workflows_verified" and accept_untested_workflows
+        if (not isinstance(record, dict) or (record.get("verified") is not True and not waived)
                 or not isinstance(record.get("references"), list) or not record["references"]
                 or not all(isinstance(ref, str) and ref.startswith(("https://", "arn:aws:")) for ref in record["references"])):
             raise ValueError("Incomplete live evidence: " + field)
 
 
-def deploy(profile, ami, evidence=None, enable=False, alarm_topic=None, execute=False):
+def deploy(profile, ami, evidence=None, enable=False, alarm_topic=None, execute=False, accept_untested_workflows=False):
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True):
         raise ValueError("Commit and validate the platform source before deploying its CI artifacts")
     scope = "canary"
+    if accept_untested_workflows and not evidence:
+        raise ValueError("Application-check waiver requires full-scope evidence and an owner authorization reference")
     if evidence:
         proof = json.loads(evidence.read_text())
         scope = proof.get("scope")
-        validate_evidence(proof, ami)
+        validate_evidence(proof, ami, accept_untested_workflows)
         if alarm_topic != alerts.TOPIC:
             raise ValueError("Automatic qualification requires the dedicated CI notification topic")
+        if accept_untested_workflows:
+            write_json(BUILD / "accepted-application-waiver.json", {
+                "source_commit": proof["source_commit"], "ami": ami,
+                "application_checks": proof.get("workflows_verified"),
+                "evidence_file": str(evidence), "execute_requested": execute})
+            print("Owner application-check exception recorded; all other live evidence gates remain required")
     if alarm_topic:
         if alarm_topic != alerts.TOPIC:
             raise ValueError("Use only the dedicated Arteamis CI notification topic")
@@ -295,16 +314,20 @@ def invoke(profile, action, repository=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["plan", "package", "foundation", "install-app", "bake", "deploy", "disable", "resume", "restore-routing", "tick", "clear-override", "status"])
+    parser.add_argument("command", choices=["plan", "package", "foundation", "install-app", "bake", "deploy", "disable", "resume", "restore-routing", "tick", "clear-override", "qualify-recovery", "status"])
     parser.add_argument("--profile", default="arteamis-ci-operator")
     parser.add_argument("--app-file", type=Path)
     parser.add_argument("--ami")
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--accept-untested-workflows", action="store_true",
+                        help="Accept an explicitly referenced owner waiver of application checks only; never waives hosted recovery or runner safety evidence")
     parser.add_argument("--enable-canary", action="store_true")
     parser.add_argument("--alarm-topic")
     parser.add_argument("--repository")
     parser.add_argument("--execute", action="store_true", help="Execute the generated CI-only change set after offline template review")
     args = parser.parse_args()
+    if args.accept_untested_workflows and args.command != "deploy":
+        parser.error("--accept-untested-workflows is only valid with deploy")
     BUILD.mkdir(exist_ok=True)
     if args.command == "plan":
         write_json(BUILD / "foundation.json", stack.foundation())
@@ -327,11 +350,12 @@ def main():
     elif args.command == "deploy":
         if not args.ami:
             parser.error("deploy requires --ami")
-        deploy(args.profile, args.ami, args.evidence, args.enable_canary or bool(args.evidence), args.alarm_topic, args.execute)
-    elif args.command == "clear-override":
+        deploy(args.profile, args.ami, args.evidence, args.enable_canary or bool(args.evidence), args.alarm_topic, args.execute,
+               accept_untested_workflows=args.accept_untested_workflows)
+    elif args.command in ("clear-override", "qualify-recovery"):
         config = json.loads((ROOT / "config.json").read_text())
         if args.repository not in config["repositories"]:
-            parser.error("clear-override requires an allowlisted --repository")
+            parser.error(args.command + " requires an allowlisted --repository")
         print(json.dumps(invoke(args.profile, args.command, args.repository)))
     else:
         print(json.dumps(invoke(args.profile, args.command)))

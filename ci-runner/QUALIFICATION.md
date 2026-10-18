@@ -1,6 +1,6 @@
 # Live qualification and activation
 
-No step below has live Arteamis evidence yet. Use only the secretless private-repository `ci-runner-canary.yml` wrappers around platform's immutable reusable canary. Never dispatch an application release or a production configuration helper to qualify the pool. Record the exact platform/caller SHA, source event/ref, run ID, every attempt, AMI/bake hash, Lambda archive/hash, schedule settings, variable saved value, runner/instance/volume IDs, timestamps and evidence links. Preserve failed checks as failures.
+See [LIVE.md](LIVE.md) for completed 2026-10-18 baseline, independent cleanup and automatic canary takeover evidence. Successful hosted recovery remains pending. The user subsequently waived remaining application tests and CI; do not repeat those checks without a new instruction or report them as verified. The procedures below retain the original qualification requirements for reference. Use only the secretless private-repository `ci-runner-canary.yml` wrappers around platform's immutable reusable canary. Never dispatch an application release or a production configuration helper to qualify the pool. Record the exact platform/caller SHA, source event/ref, run ID, every attempt, AMI/bake hash, Lambda archive/hash, schedule settings, variable saved value, runner/instance/volume IDs, timestamps and evidence links. Preserve failed checks as failures.
 
 ## Baseline, with automatic takeover disabled
 
@@ -66,6 +66,19 @@ The canary-only scope permits only the named canary wrappers in backend, web, la
 
 GOL has local tests and live takeover/cleanup evidence, but no successful live hosted recovery proof to borrow. Arteamis must establish its own:
 
+If the original takeover modes were already restored while draining the pilot, use the recovery-only preparation command after hosted availability returns. This requires the updated controller from this source, a disabled stop switch, canary-only capacity, automatic takeover off, no existing mode/override, and absent or explicitly hosted routing. It saves the exact value before changing routing; it launches no canary or release and requests no retry:
+
+```sh
+ARTEAMIS_AMI=ami-07a511df2b588b737
+ci-runner/.build/venv/bin/python ci-runner/provision.py disable
+ci-runner/.build/venv/bin/python ci-runner/provision.py deploy --ami "$ARTEAMIS_AMI" --enable-canary --alarm-topic arn:aws:sns:ap-southeast-1:779035457064:arteamis-ci-alerts
+# Review/execute the named change set, then verify both artifact hashes.
+ci-runner/.build/venv/bin/python ci-runner/provision.py qualify-recovery --repository arteamis-system/product
+ci-runner/.build/venv/bin/python ci-runner/provision.py resume
+```
+
+The next tick dispatches the literal-hosted probe. Require its exact nonce and successful hosted identity, the `hosted-recovered` record and restoration of the saved value. This path was prepared after the owner waived tests; it has not been run live. Keep it separate from the already observed billing takeover, and do not describe recovery as qualified until the hosted result and restoration are observed. Finish with `disable`/`restore-routing` and zero-capacity verification. Do not use `clear-override` to erase a person's override merely to enter this window.
+
 1. Keep the canary's controller-owned AWS mode and saved value after automatic takeover. Record the DynamoDB mode metadata without reading App configuration. The controller dispatches `ci-hosted-probe.yml` on backend main every six hours using a unique nonce; the workflow has no secrets, empty permissions, literal `ubuntu-24.04` and a two-minute timeout. Do not edit the probe to use configurable routing.
 2. While billing remains blocked, verify a failed probe does **not** restore routing or trigger a retry/runner VM. In a separate controlled test, set a manual hosted/custom override and prove the controller records manual ownership and leaves it untouched; restore the intended hosted baseline and explicitly clear that override before another takeover. Do not erase retry tombstones.
 3. After an owner restores hosted availability through GitHub billing/allowance, wait for the next scheduled probe (up to six hours). Observe the matching nonce/title, `workflow_dispatch`, main branch, one successful job, literal hosted label, a GitHub Actions runner identity and assigned runner ID. A successful unrelated or AWS job is insufficient.
@@ -86,6 +99,8 @@ gh workflow run ci-runner-canary.yml --repo arteamis-system/product --ref main -
 Set AWS routing explicitly for manual qualification only after saving each prior variable; restore it afterward. If routing is controller-owned, preserve its saved state instead. Observe capacity/cleanup for all runs. Never broaden scope just to run release.yml. Record backend Docker test memory/duration, web/browser build limits, landing checks and product documentation checks before `workflows_verified=true`. No successful production deployment claim follows from these tests. SSH deployment reachability and real release-specific behavior remain unqualified until a separately authorized release; do not use a real deployment to qualify the runner.
 
 The full evidence file uses `scope=all`, exact current platform source/AMI/bake hash and all baseline plus `automatic_takeover_verified`, `hosted_recovery_verified`, `workflows_verified` fields with dated references. Both staged and full activation require the dedicated connected alert topic. Then, and only then:
+
+Owner application-test waiver: the 2026-10-18 direction waived remaining application tests and CI. Preserve `workflows_verified.verified=false`; set `waived=true`, a nonempty `reason` and an HTTPS reference to the recorded owner authorization. Pass `--accept-untested-workflows` explicitly to `deploy` when accepting this exception. Without that flag the default validator remains strict. The flag cannot waive hosted recovery, takeover, permissions, tools, capacity or cleanup, and is invalid for canary scope. Never manufacture successful checks to satisfy evidence. Do not rerun the waived application checks for this continuation.
 
 ```sh
 ci-runner/.build/venv/bin/python ci-runner/provision.py deploy --ami "$ARTEAMIS_AMI" --evidence ci-runner/.build/acceptance-all.json --alarm-topic arn:aws:sns:ap-southeast-1:779035457064:arteamis-ci-alerts

@@ -1,6 +1,6 @@
 # Source preparation validation
 
-Dated 2026-10-17. This is implementation evidence. There is no Arteamis AWS deployment, App installation, live canary, automatic takeover or successful hosted recovery claim.
+Dated 2026-10-17, with subsequent source fixes below. This records implementation validation at the time performed. See [LIVE.md](LIVE.md) for the separate 2026-10-18 provisioning, canary and release evidence. Successful hosted recovery remains unverified. The user subsequently waived remaining application tests and CI; cancelled gates are not passes.
 
 The local Python suite passes 70 tests, retaining GOL's billing classifier, durable original-run retry, ambiguous retry/launch, delayed variable readback, restored-value/manual override, failed-boot bound, conditional capacity, orphan/deadline and reusable/queue regressions. Arteamis coverage adds manual release admission/current-main authority, historical deployment-start refusal, recursive immutable children/cycle rejection, mandatory routing of temporarily skipped dependencies, run-specific labels, stale queue rejection, fork-policy drift and evidence-gated activation. The reference source is GOL infra `efab42413290a129bfbf0cb5979e79c33427b81b`; its resources and live records are not imported.
 
