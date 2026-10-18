@@ -29,6 +29,7 @@ Before the later waiver, 70 Python tests, workflow linting, four CloudFormation 
 | AMI | `ami-07a511df2b588b737`, snapshot `snap-0394b01f0cd4d2165` |
 | AMI provenance | Canonical base `ami-0080f2c6aa4e378b7`; bake SHA-256 `0d2c2c56390d54dab2b9df64e03156388bb3bdee1eb74d39668d7f88ba99a30e` |
 | Lambda bundle | SHA-256 `623a33bb48ae9457c4cfebdd420b0356edcc9759d3ccd84b4263a2c6b3088801`, both controller and reaper verified |
+| Current maintenance bundle | SHA-256 `879ec53d92efb965e9751f20b29e490727be4ed4ae668bf8e5c1945eeefc5b48`, source `62f812d3f299917b53e00d7a9b16f4fddbdf9904`; both Lambda hashes verified after rollout |
 | State / artifact bucket | `arteamis-ci-state` / `arteamis-ci-artifacts-779035457064-ap-southeast-1` |
 | Launch template | `lt-04335d9dabf46be5f`, version 1 |
 | Network | Isolated subnet `subnet-0a7fa21362cb39323`, SG `sg-092c894a5bf906560`; no ingress, outbound 22/80/443 |
@@ -58,7 +59,29 @@ Backend's existing cutover preflight passed before dispatch; its bootstrap role 
 
 [Backend release 39098617850](https://github.com/arteamis-system/backend/actions/runs/39098617850) succeeded on AWS runners. It deployed main `196c3993f11fac48739fbcdc0a76580a91307fed`, image `ghcr.io/arteamis-system/backend@sha256:310bc68dd24791e49440ac4dbe4a8b53bc132e8cf7670afa05dabda9ffe6cebb`. The running container's OCI revision matches that commit. Bootstrap, pre-migration backup, migration and finalization exited zero; API and worker started. Public `https://api.arteamis.space/health` and `/ready` returned HTTP 200 after the release. This release is deployment evidence, separate from the earlier secretless qualification.
 
-[Web release 39099269643](https://github.com/arteamis-system/web/actions/runs/39099269643) was dispatched on main `f9d3a2c975d70fd2e0231b5dedf342938a691b38` only after backend workflow success and health verification. Its final mirror/provider status is recorded after completion. A successful mirror push alone is not a claim of a completed Vercel build.
+[Web release 39099269643](https://github.com/arteamis-system/web/actions/runs/39099269643) succeeded on main `f9d3a2c975d70fd2e0231b5dedf342938a691b38`, after backend workflow success and health verification. It published mirror commit `6d6fa4b` to `the-morca-deployer/arteamis-frontend:main` and recorded release deployment `7150239127`. The public login page returned HTTP 200. The current CLI account cannot access the Vercel project, so exact provider build/revision/alias verification remains pending. A successful mirror push alone is not a claim of a completed Vercel build.
+
+The web release exposed a queue race: a collected queued job could start before capacity was admitted, causing a bounded extra VM. [Platform #22](https://github.com/arteamis-system/platform/pull/22), merged as `62f812d`, now re-reads the job's current status/run/labels before claiming supply and reaps a positively non-busy runner whose original run has completed. Three regression cases were prepared but not executed under the user's waiver. The new bundle was installed with automatic routing and the controller schedule disabled. A manual reconciliation with the stop switch still set terminated spare `i-0298173ff175eae7b`; root `vol-03c5de3509697fbec` disappeared, and a subsequent reconciliation removed its registration/slot. Normal release jobs were not replayed.
+
+At **2026-10-18 05:16 UTC**, verification found zero active/shutting-down pool instances, zero pool root volumes, zero pool registrations across all four repositories, and absent routing variables in all four. Controller stop is true, its schedule is disabled, `ROUTING_VERIFIED=false`, `QUALIFICATION_ONLY=true`; the independent reaper schedule remains enabled. Successful hosted recovery and full automatic activation remain pending.
+
+## Repeatable manual release window
+
+For a future **separately authorized** release while hosted billing remains blocked, use the bounded manual operating mode already used above. The new CLI flag reproduces that reviewed runtime configuration; it was statically inspected, with tests/CI waived. It changes no repository variable and dispatches no release itself:
+
+```sh
+ci-runner/.build/venv/bin/python ci-runner/provision.py deploy --ami ami-07a511df2b588b737 --manual-release-mode --alarm-topic arn:aws:sns:ap-southeast-1:779035457064:arteamis-ci-alerts
+# Review the saved CloudFormation change set, then execute it (or repeat with --execute).
+ci-runner/.build/venv/bin/python ci-runner/provision.py resume
+# Save each variable's exact presence/value before deliberately setting the AWS template.
+gh variable set ARTEAMIS_CI_RUNNERS --repo arteamis-system/backend --body '["self-hosted","linux","x64","arteamis-runner","arteamis-run-{0}"]'
+gh workflow run release.yml --repo arteamis-system/backend --ref main
+# Require backend release success and exact running revision/health before releasing web.
+gh variable set ARTEAMIS_CI_RUNNERS --repo arteamis-system/web --body '["self-hosted","linux","x64","arteamis-runner","arteamis-run-{0}"]'
+gh workflow run release.yml --repo arteamis-system/web --ref main
+```
+
+This is explicit operator routing, not automatic billing takeover. It retains the original workflows' permissions, gates and concurrency, and makes no automatic retry. After releases finish, stop supply, restore the exact variables, drain, and use `deploy` without manual/evidence/canary flags to return the controller schedule to disabled. Keep the reaper enabled. Never retry a deployment that started merely because a later record or verification failed.
 
 ## Disable and return to hosted defaults
 
@@ -82,13 +105,14 @@ An absent variable returns future jobs to hosted Ubuntu. Never change routing du
 
 ## Remaining human dependencies, in order
 
-1. For hosted recovery qualification, an organization billing owner must resolve the payment/spending block in `arteamis-system` Settings → Billing & licensing → Budgets and alerts / payment information. Review the account's actual error and approved spending amount; the previous Actions budget was $0 with further use blocked. This is a financial decision, not something a runner can bypass.
-2. In AWS Billing → Cost allocation tags, activate `ArteamisCiPool` when AWS publishes it. It was still absent from the API during setup; appearance and activation can each take up to 24 hours. The $20 SNS budget is an alert, not a hard cap; tag-filtered coverage is incomplete until activation and billing propagation.
+1. In the Vercel workspace that owns `app.arteamis.space`, open project `arteamis-frontend` → Deployments → commit `6d6fa4b` (source parent `f9d3a2c`). Confirm **Ready**, production target, and the `app.arteamis.space` alias; retain the deployment URL. If it failed, inspect the provider's build error before making another release. The available CLI account belongs to a different workspace and cannot establish this result.
+2. For hosted recovery qualification, wait for the next allowance reset, or have an organization billing owner resolve the payment/spending block in `arteamis-system` Settings → Billing & licensing → Budgets and alerts / payment information. Review the actual error and any approved spending amount; the previous Actions budget was $0 with further use blocked. No GitHub spending limit was raised by this setup.
+3. In AWS Billing → Cost allocation tags, activate `ArteamisCiPool` when AWS publishes it. It was still absent from the API during setup; appearance and activation can each take up to 24 hours. The $20 SNS budget is an alert, not a hard cap; tag-filtered coverage is incomplete until activation and billing propagation.
 
 AWS authentication, App creation/installation, repository selection, alert confirmation and infrastructure provisioning are already complete; do not repeat them. Administrator access is unnecessary for routine runner operations.
 
 After hosted availability recovers, follow [QUALIFICATION.md](QUALIFICATION.md): create a fresh secretless canary-only automatic qualification window, preserve each previous routing value, require a correlated explicitly hosted successful probe, observe exact restoration (including deletion for an absent prior value), prove manual overrides are preserved, and drain. Original failed probes cannot establish recovery. Keep full-scope evidence false until the required live records exist. Then regenerate evidence against the committed source/AMI/bake, review the runtime change set with scope `all`, enable general automatic routing and retain independent cleanup. No application deployment is required for that remaining qualification.
 
-The remaining application gates were explicitly waived. Provisioning now accepts that exception only with `--accept-untested-workflows` and a `workflows_verified` record containing `verified=false`, `waived=true`, a nonempty reason and dated owner-authorization references. It saves a local exception audit record. All other evidence remains mandatory, including actual hosted recovery. The new `qualify-recovery` command prepares a recovery-only saved-value window when the previous pilot modes have already been restored; it refuses existing routing ownership/overrides and requires stopped manual canary-only operation. It launches/retries no application job. These additive preparation changes were inspected statically; new tests and CI were skipped at the user's direction. They have not been deployed to the live runtime. The production releases used the previously qualified bundle identified above. Application workflow pins and runner AMI are unchanged.
+The remaining application gates were explicitly waived. Provisioning accepts that exception only with `--accept-untested-workflows` and a `workflows_verified` record containing `verified=false`, `waived=true`, a nonempty reason and dated owner-authorization references. It saves a local exception audit record. All other evidence remains mandatory, including actual hosted recovery. The deployed `qualify-recovery` command prepares a recovery-only saved-value window when previous pilot modes were restored; it refuses existing routing ownership/overrides and requires stopped manual canary-only operation. It launches/retries no application job. These additive preparation changes were inspected statically; new tests and CI were skipped at the user's direction, and the recovery action has not been exercised live. The production releases used the earlier qualified bundle identified above. Application workflow pins and runner AMI are unchanged.
 
 Cost planning: approximately **$0.13815 per live VM-hour**, including public IPv4 and 100 GiB root allocation; budget **$8–12/month** for controller/state/snapshots/monitoring before jobs, and **$12–16/month** for an illustrative 100 ten-minute jobs plus two-minute overhead and 10 GiB paid egress. See [COSTS.md](COSTS.md) for official rates, measured controller timing, shared-allowance assumptions and retention. No dedicated NAT, Elastic IP, persistent runner disk or warm VM is provisioned. The $20 alert does not stop spending.
