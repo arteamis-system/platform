@@ -10,6 +10,12 @@
 >
 > Every internal `uses:` has been repointed at `arteamis-system/platform`. When
 > upstream moves, rebase this fork and re-apply that rewrite.
+>
+> **Arteamis practice differs from the upstream template below.** Callers pin
+> commit SHAs, not `@v1`. Production is a deliberate manual `release.yml` run on
+> `main`; there are no `deploy/*` branches, and staging is deferred. Onboarding,
+> Secrets, Selective deploys and Promotion describe the upstream template. For
+> the current callers, pins and release procedure, read [AGENTS.md](AGENTS.md).
 
 
 
@@ -146,6 +152,9 @@ Branches decide environments. A pull request never deploys.
   deploy-vm.yml        ship compose → pull → recreate one service → health → rollback
   deploy-vercel.yml    vercel pull · build · deploy --prebuilt · alias
   terraform-apply.yml  fmt → validate → plan on PR → apply on merge
+  deploy-mirror.yml    Arteamis web: push to the Vercel mirror repository
+  ci-browser.yml · ci-desktop.yml · release-desktop.yml · docs-check.yml
+  ci-runner-*.yml · ci-hosted-probe.yml   AWS runner fallback qualification
 actions/
   load-manifest/       the manifest schema, in one script
   setup-runtime/       node · python · go · rust · solidity toolchains
@@ -215,20 +224,23 @@ production runs exactly the bytes that passed staging.
 This repository is production for every other repository. A bad change here
 breaks everyone's deploys.
 
-- Stubs pin `@v1`. Never point a stub at `@main`.
-- Merge to `main`, verify, then move the tag deliberately:
+- Upstream stubs pin `@v1`. Never point a stub at `@main`.
+- Upstream merges to `main`, verifies, then moves the tag deliberately:
   ```bash
   git tag -f v1 && git push -f origin v1
   ```
+- Arteamis callers pin commit SHAs instead, and `v1` (`30b465c`) remains only
+  for older callers. Don't move it; follow the two-step pin change in
+  [AGENTS.md](AGENTS.md).
 - `CODEOWNERS` requires review on workflows, actions, modules and policy.
 
 ## Arteamis production source and handoff
 
-- [Deployment handoff](releases/DEPLOYMENT_HANDOFF.md): final-source release order, configuration gaps and dated verification limits.
-- [Feature release inventory](releases/refactor-2026-10-14.json): accepted areas remain unreleased until verified.
+- [Deployment handoff](releases/DEPLOYMENT_HANDOFF.md): the 2026-10-14 release order, configuration gaps and verification limits, with a 2026-10-22 status update. Production has run backend `196c399` and web `c6fb203` since 2026-10-18.
+- [Feature release inventory](releases/refactor-2026-10-14.json): the 2026-10-14 accepted areas and their release dispositions. A deployment is not dated production verification.
 - [Environment roots](environments/README.md) and [production inventory](ops/production-inventory.json).
 - `ops/check-production.py` is read-only. `ops/restore-backup.sh` restores into a new disposable container only.
 
 ## Ephemeral AWS runner fallback
 
-[CI runner preparation and human setup](ci-runner/README.md) owns the disabled-by-default CloudFormation controller/pool, private-repository routing, cost model and secretless qualification. Source integration does not activate the pool or authorize a production release.
+[CI runner preparation and human setup](ci-runner/README.md) owns the CloudFormation controller/pool, private-repository routing, cost model and secretless qualification. The pool was provisioned on 2026-10-18. On 2026-10-22 its controller schedule was disabled, the reaper was enabled and no repository routed to it; see the dated [live operating record](ci-runner/LIVE.md). Source integration does not activate the pool or authorize a production release.

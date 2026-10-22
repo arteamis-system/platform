@@ -6,6 +6,37 @@ acceptance are deferred to the teammate. No production release, cloud apply,
 installer publication or branch deletion was performed. Source integration is
 not a claim that the feature backlog is live.
 
+## Status update (2026-10-22)
+
+The sections after this one record the 2026-10-14 handoff unchanged. Since then
+the user separately authorized production work, with tests and CI waived:
+
+- 2026-10-15: the production cluster cutover ran and exited 0. Volume
+  `arteamis_pgcluster` is live, and the old `arteamis_pgdata` volume holds the
+  rollback data; do not remove it. Rehearsal container
+  `arteamis-release-rehearsal-b0aa37f41c` (pgvector pg16), started that day, is
+  still running on the host. Leave it unless the owner approves removal.
+- 2026-10-17: backend `b4fcdf7` was released manually as a source layer with CI
+  skipped, after release run 39015059923 was blocked. Its pre-migration dump was
+  recorded as uploaded offsite.
+- 2026-10-18: [backend release 39098617850](https://github.com/arteamis-system/backend/actions/runs/39098617850)
+  deployed main `196c399` on the AWS fallback runners; `/health` and `/ready`
+  return 200 and the worker is running. [Web release 39099269643](https://github.com/arteamis-system/web/actions/runs/39099269643)
+  deployed `f9d3a2c`. Web `c6fb203` followed through the Vercel REST API
+  (GitHub deployment 7151238725, CI skipped by explicit user request) after
+  release run 39105829004 was blocked by billing.
+- Desktop pre-release `desktop-v0.1.0-internal.4` (`96c93d6`) was built
+  locally and ad-hoc signed. Landing's release is still deferred.
+
+Both production services now run current main, so the earlier statement that
+readiness and worker availability fail on the old release is superseded. Backup
+freshness, private configuration reconciliation (step 2 below) and Hatchet
+setup (step 3) were not re-verified here. The newest release tag is still
+`release/prod-2026-09-20`. GitHub-hosted CI has been blocked by billing since
+2026-10-17; see [the live runner record](../ci-runner/LIVE.md). A deployment is
+not dated production verification, so no product requirement was promoted to
+Built.
+
 ## Source and checks
 
 Source consolidation is complete on all six main branches. The
