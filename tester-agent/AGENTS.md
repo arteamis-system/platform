@@ -9,7 +9,7 @@ A TypeScript CLI (Node ≥ 22, zod) that probes a running deployment. It has two
 
 `../.github/workflows/tester-agent.yml` calls it and sets its environment variables from the manifest. See `README.md` for the full list.
 
-This agent is currently disabled in both Arteamis app manifests. Its build/unit tests do not establish that a deployed app has passed soak or monitoring; a real run needs an explicitly selected target and configured gateway access.
+This agent is not enabled for any Arteamis repository (checked 2026-10-22): backend, web and landing manifests carry no `test.tester_agent` block, and no repository has a monitor workflow. Its build/unit tests do not establish that a deployed app has passed soak or monitoring; a real run needs an explicitly selected target and configured gateway access.
 
 ## Commands
 
