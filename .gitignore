@@ -19,3 +19,7 @@ __pycache__/
 # CI runner build products and private setup output
 ci-runner/.build/
 ci-runner/generated/
+
+# Per-worktree agent state and local verification artifacts
+.agent/
+.verify/
