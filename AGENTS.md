@@ -7,6 +7,12 @@ Shared CI/CD used by the brain backend and website frontend in `arteamis-system`
 
 Work from `main`, read the workspace guide, and preserve local commits. Use a topic branch for changes unless the user explicitly asks to finish on `main`; documentation-only work may use `docs/<topic>`. Run commands from this repo or the named package below.
 
+## Start here (pstack)
+
+1. Load the Arteamis method entry skill ([`.agents/skills/arteamis-method/SKILL.md`](.agents/skills/arteamis-method/SKILL.md), also linked at `.claude/skills/arteamis-method/SKILL.md`), which resolves vendored `pstack` playbooks/principles via `../desktop/plugins/arteamis/pstack/` or `~/.arteamis/plugin/pstack/`.
+2. Follow [`docs/agent-workflow.md`](docs/agent-workflow.md) for the session loop, `.agent/progress.md`, `## Evidence`, and two-step SHA-pinned workflow releases.
+3. Run `make check` (fast harness, pin/upstream, whitespace, and local lint checks) and `make verify` (`make check` + `actions/report-findings` tests) before handing over.
+
 ## How an app repo uses it
 
 - **The app repo carries two files:**
